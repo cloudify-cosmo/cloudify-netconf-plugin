@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:t2="http://example.net/turing-machine/tape-2" xmlns="http://example.net/turing-machine" message-id="11">
+  <initialize>
+    <input>
+      <tape-content>0101010</tape-content>
+    </input>
+  </initialize>
+</rfc6020:rpc>

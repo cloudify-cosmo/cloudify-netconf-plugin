@@ -1,0 +1,161 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+
+data_types:
+  cell:
+    properties:
+      coord:
+        required: false
+      data:
+        required: false
+  protocol:
+    properties:
+      protocolid:
+        required: false
+      tcp:
+        required: false
+      udp:
+        required: false
+
+  initialize:
+    properties:
+      input:
+        type: input
+        required: false
+
+  input:
+    properties:
+      tape-content:
+        required: false
+
+  tape:
+    properties:
+      tape1:
+        required: false
+        type: tape1
+      t2@tape2:
+        required: false
+        type: tape2
+
+  tape1:
+    properties:
+      coordx:
+        required: false
+      coordy:
+        required: false
+  tape2:
+    properties:
+      cell:
+        description: '[List_of: cell] '
+        required: false
+      coord:
+        # if set there required all parent aslo will be required
+        required: false
+
+  timeout:
+    properties:
+      listdata:
+        description: '[List_of: listdata] '
+        required: false
+      protocol:
+        required: false
+        type: protocol
+      timeout1:
+        required: false
+
+  edit-config:
+    properties:
+      target:
+        default: running
+        required: false
+      config:
+        type: config
+        required: false
+
+  config:
+    properties:
+      tape:
+        required: false
+        type: tape
+      timeout:
+        required: false
+        type: timeout
+
+  data_type:
+    properties:
+
+node_types:
+  acme:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      initialize:
+        type: initialize
+        required: false
+      edit-config:
+        type: edit-config
+        required: false
+      metadata:
+        default:
+          xmlns:
+            _: http://example.net/turing-machine
+            t2: http://example.net/turing-machine/tape-2
+            op: http://example.net/operation
+
+node_templates:
+  turing-machine-edit-config-impl:
+    type: acme
+    properties:
+      edit-config:
+       target: running
+       config:
+         tape:
+           tape1:
+             coordx: 1
+             coordy: 10
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            action: edit-config
+            payload:  { get_property: [ turing-machine-edit-config-impl, edit-config ] }
+
+  turing-machine-edit-config-tape2-impl:
+    type: acme
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            action: edit-config
+            payload:
+              target: running
+              config:
+                tape:
+                  tape1:
+                    # with _@ it will be attibute
+                    _@@operation: merge
+                    coordx: 1
+                    coordy: 10
+                  # with one @ - will be general tag with namespace
+                  t2@tape2:
+                    cell:
+                      - coord: 1
+                        data: 111
+                      - coord: 2
+                        # will be attribute with namespace t2
+                        _@op@operation: replace
+
+  turing-machine-initilize-impl:
+    type: acme
+    properties:
+        initialize:
+          input:
+            tape-content: "0101010"
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            action: initialize
+            payload:  { get_property: [ turing-machine-initilize-impl, initialize ] }
