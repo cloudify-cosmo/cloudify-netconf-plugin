@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:t2="http://example.net/turing-machine/tape-2" xmlns:op="http://example.net/operation" xmlns="http://example.net/turing-machine" message-id="11">
+  <edit-config>
+    <config>
+      <tape>
+        <t2:tape2>
+          <t2:cell>
+            <t2:data>111</t2:data>
+            <t2:coord>1</t2:coord>
+          </t2:cell>
+          <t2:cell op:operation="replace">
+            <t2:coord>2</t2:coord>
+          </t2:cell>
+        </t2:tape2>
+        <tape1 operation="merge">
+          <coordy>10</coordy>
+          <coordx>1</coordx>
+        </tape1>
+      </tape>
+    </config>
+    <target>running</target>
+  </edit-config>
+</rfc6020:rpc>
