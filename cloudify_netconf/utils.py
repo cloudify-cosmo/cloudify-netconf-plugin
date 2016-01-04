@@ -13,6 +13,7 @@
 # limitations under the License.
 from lxml import etree
 from cloudify import exceptions as cfy_exc
+import paramiko
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
 # default netconf namespace short name
@@ -56,7 +57,9 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
         if isinstance(value, dict):
             _gen_xml(result, value, xmlns, tag_namespace, nsmap)
         else:
-            result.text = str(value)
+            if value is not None:
+                # dont add None value
+                result.text = str(value)
         parent.append(result)
     else:
         # attibute
@@ -72,7 +75,7 @@ def _gen_xml(parent, properties, xmlns, namespace, nsmap):
         else:
             _general_node(parent, node, properties[node], xmlns, namespace, nsmap)
 
-def _update_xmlns(xmlns):
+def update_xmlns(xmlns):
     netconf_namespace = DEFAULT_NCNS
     for k in xmlns:
         if xmlns[k] == NETCONF_NAMESPACE:
@@ -82,37 +85,28 @@ def _update_xmlns(xmlns):
         xmlns[netconf_namespace] = NETCONF_NAMESPACE
     return netconf_namespace, xmlns
 
-def generate_xml_node(model, xmlns, action, parent_tag, message_id=None):
-    if not action:
-        raise cfy_exc.NonRecoverableError(
-            "node doesn't have action"
-        )
-    if not xmlns:
-        raise cfy_exc.NonRecoverableError(
-            "node doesn't have any namespaces"
-        )
-    netconf_namespace, xmlns = _update_xmlns(xmlns)
+def create_nsmap(xmlns):
+    netconf_namespace, xmlns = update_xmlns(xmlns)
     nsmap = {}
     for k in xmlns:
         if k != "_":
             nsmap[k] = xmlns[k]
         else:
             nsmap[None] = xmlns[k]
+    return nsmap, netconf_namespace, xmlns
+
+def generate_xml_node(model, xmlns, parent_tag):
+    if not xmlns:
+        raise cfy_exc.NonRecoverableError(
+            "node doesn't have any namespaces"
+        )
+    nsmap, netconf_namespace, xmlns = create_nsmap(xmlns)
     # we does not support attibutes on top level, so for now ignore attibute flag
     _, _, tag_name = _node_name(parent_tag, netconf_namespace, xmlns)
     parent = etree.Element(
         tag_name, nsmap=nsmap
     )
-    # we does not support attibutes on top level, so for now ignore attibute flag
-    _, _, tag_name = _node_name(action, "_", xmlns)
-    parent_action = etree.Element(
-        tag_name, nsmap=nsmap
-    )
-    parent.append(parent_action)
-    if message_id:
-       parent.attrib['message-id'] = str(message_id)
-    if model:
-        _gen_xml(parent_action, model, xmlns, '_', nsmap)
+    _gen_xml(parent, model, xmlns, '_', nsmap)
     return parent
 
 def _short_names(name, xmlns):
@@ -128,7 +122,8 @@ def _short_names(name, xmlns):
 
 def _node_to_dict(parent, xml_node, xmlns):
     name = _short_names(xml_node.tag, xmlns)
-    if xml_node.text:
+    if not xml_node.getchildren():
+        # we dont support text inside of node if we have subnodes
         value = xml_node.text
     else:
         value = {}
@@ -153,5 +148,33 @@ def _node_to_dict(parent, xml_node, xmlns):
         parent[name] = value
 
 def generate_dict_node(parent, xml_node, nslist):
-    netconf_namespace, xmlns = _update_xmlns(nslist)
+    netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
+
+magic_end = "]]>]]>"
+
+def send_xml(chan, buff, xml):
+    chan.send(xml + magic_end)
+    while buff.find(magic_end) == -1:
+        buff += chan.recv(8192)
+    response = buff[:buff.find(magic_end)]
+    buf_end = buff[buff.find(magic_end) + len(magic_end):]
+    return buf_end, response
+
+def connect_to_netconf(ip, user, password, hello_string):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(
+        ip, username=user, password=password , port=830
+    )
+    chan = ssh.get_transport().open_session()
+    chan.invoke_subsystem('netconf')
+    buff = ""
+    buff, capabilities = send_xml(chan, buff, hello_string)
+    return capabilities, ssh, chan, buff
+
+def close_connection(chan, ssh, buff, goodbye_string):
+    buff, response = send_xml(chan, buff, goodbye_string)
+    chan.close()
+    ssh.close()
+    return buff, response

@@ -16,3 +16,15 @@ node_types:
                 create:
                     implementation: netconf.cloudify_netconf.xml_rpc.run
                     inputs: {}
+                configure:
+                    implementation: netconf.cloudify_netconf.xml_rpc.run
+                    inputs: {}
+                start:
+                    implementation: netconf.cloudify_netconf.xml_rpc.run
+                    inputs: {}
+                stop:
+                    implementation: netconf.cloudify_netconf.xml_rpc.run
+                    inputs: {}
+                delete:
+                    implementation: netconf.cloudify_netconf.xml_rpc.run
+                    inputs: {}

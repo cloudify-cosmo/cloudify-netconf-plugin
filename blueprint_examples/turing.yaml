@@ -4,6 +4,25 @@ imports:
   - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
   - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
 
+inputs:
+
+  netconf_ip:
+    type: string
+    description: >
+       netconf server ip
+    default: 127.0.0.1
+
+  netconf_user:
+    type: string
+    description: >
+       netconf server user
+    default: netconf
+  netconf_password:
+    type: string
+    description: >
+       netconf server user password
+    default: netconf
+
 node_types:
 
   turing-machine:
@@ -109,7 +128,8 @@ node_types:
       metadata:
         default:
           xmlns:
-            _: http://example.net/turing-machine
+            _: urn:ietf:params:xml:ns:netconf:base:1.0
+            turing: http://example.net/turing-machine
             t2: http://example.net/turing-machine/tape-2
           relax_ng: 'content of xml'
           scematron: 'content of xml'
@@ -118,62 +138,172 @@ node_types:
           features:
             - features list
 
-  turing-machine-edit-config:
+  turing-machine-update-config:
     derived_from: turing-machine
     properties:
+      netconf_auth:
+        default: {}
       edit-config:
         default: {}
+      turing@initialize:
+        default: {}
+      get-config:
+        default:
+          source:
+            running: {}
 
-  turing-machine-initilize:
+  turing-machine-run:
     derived_from: turing-machine
     properties:
-      initialize:
+      netconf_auth:
+        default: {}
+      turing@run:
         default: {}
 
 # -------------------------------------------------------
 
 node_templates:
-  turing-machine-edit-config-impl:
-    type: turing-machine-edit-config
+
+
+  turing-machine-update-config-impl:
+    type: turing-machine-update-config
     properties:
+      netconf_auth:
+        user:  { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip:  { get_input: netconf_ip }
+      turing@initialize:
+        turing@tape-content: 101010101
       edit-config:
-        target: running
+        error-option: rollback-on-error
+        target:
+          running: {}
         config:
-          turing-machine:
-            transition-function:
-              delta:
-                - label: 1
-                  input:
-                    state: 0
-                    symbol: 0
-                  output:
-                    state: 1
-                    symbol: {}
-                    head-move: right
-                - label: 2
-                  input:
-                    state: 0
-                    symbol: 1
-                  output:
-                    state: 1
-                    symbol: 1
-                    head-move: left
+          turing@turing-machine:
+            turing@transition-function:
+              turing@delta:
+                - turing@label: 1
+                  turing@input:
+                    turing@symbol: 0
+                    turing@state: 0
+                  turing@output:
+                    turing@symbol: {}
+                    turing@state: 1
+                    turing@head-move: right
+                - turing@label: 2
+                  turing@input:
+                    turing@symbol: 0
+                    turing@state: 1
+                  turing@output:
+                    turing@symbol: 0
+                    turing@state: 1
+                    turing@head-move: right
+                - turing@label: 3
+                  turing@input:
+                    turing@symbol: 1
+                    turing@state: 1
+                  turing@output:
+                    turing@symbol: 1
+                    turing@state: 2
+                    turing@head-move: right
+                - turing@label: 4
+                  turing@input:
+                    turing@symbol: 1,
+                    turing@state: 2
+                  turing@output:
+                    turing@symbol: 1
+                    turing@state: 2
+                    turing@head-move: right
+                - turing@label: 5
+                  turing@input:
+                    turing@symbol: {}
+                    turing@state: 2
+                  turing@output:
+                    turing@symbol: {}
+                    turing@state: 3
+                    turing@head-move: left
+                - turing@label: 6
+                  turing@input:
+                    turing@symbol: 1
+                    turing@state: 3
+                  turing@output:
+                    turing@symbol: {}
+                    turing@state: 4
+                    turing@head-move: left
+                - turing@label: 7
+                  turing@input:
+                    turing@symbol: {}
+                    turing@state: 4
+                  turing@output:
+                    turing@symbol: {}
+                    turing@state: 7
+                    turing@head-move: right
+                - turing@label: 8
+                  turing@input:
+                    turing@symbol: 1
+                    turing@state: 4
+                  turing@output:
+                    turing@symbol: 1
+                    turing@state: 5
+                    turing@head-move: left
+                - turing@label: 9
+                  turing@input:
+                    turing@symbol: 1
+                    turing@state: 5
+                  turing@output:
+                    turing@symbol: 1
+                    turing@state: 5
+                    turing@head-move: left
+                - turing@label: 10
+                  turing@input:
+                    turing@symbol: 0
+                    turing@state: 5
+                  turing@output:
+                    turing@symbol: 0
+                    turing@state: 6
+                    turing@head-move: left
+                - turing@label: 11
+                  turing@input:
+                    turing@symbol: 0
+                    turing@state: 6
+                  turing@output:
+                    turing@symbol: 0
+                    turing@state: 6
+                    turing@head-move: left
+                - turing@label: 12
+                  turing@input:
+                    turing@symbol: {}
+                    turing@state: 6
+                  turing@output:
+                    turing@symbol: {}
+                    turing@state: 0
+                    turing@head-move: right
+
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
+          inputs:
+            action: get-config
+            payload:  { get_property: [ turing-machine-update-config-impl, get-config ] }
+        configure:
           inputs:
             action: edit-config
-            payload:  { get_property: [ turing-machine-edit-config-impl, edit-config ] }
+            payload:  { get_property: [ turing-machine-update-config-impl, edit-config ] }
+        start:
+          inputs:
+            action: turing@initialize
+            payload:  { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
 
-  turing-machine-initilize-impl:
-    type: turing-machine-initilize
+  turing-machine-run-impl:
+    type: turing-machine-run
     properties:
-      initialize:
-        input:
-          tape-content: "0101010"
+      netconf_auth: { get_property: [ turing-machine-update-config-impl, netconf_auth ] }
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
-            action: initialize
-            payload:  { get_property: [ turing-machine-initilize-impl, initialize ] }
+            action: turing@run
+            payload:  { get_property: [ turing-machine-run-impl, turing@run ] }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: turing-machine-update-config-impl
