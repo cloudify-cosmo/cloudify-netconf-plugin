@@ -22,11 +22,11 @@ import time
 DEFAULT_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
 
 
-
 def _generate_hello(xmlns, netconf_namespace, capabilities):
+    """generate initial hello message with capabilities"""
     if not capabilities:
         capabilities = []
-    if not DEFAULT_CAPABILITY in capabilities:
+    if DEFAULT_CAPABILITY not in capabilities:
         capabilities.append(DEFAULT_CAPABILITY)
     hello_dict = {
         netconf_namespace + '@capabilities': {
@@ -45,6 +45,7 @@ def _generate_hello(xmlns, netconf_namespace, capabilities):
 
 
 def _generate_goodbye(xmlns, netconf_namespace, message_id):
+    """general final goodbye message"""
     goodbye_dict = {
         netconf_namespace + '@close-session': None,
         '_@@message-id': message_id
@@ -60,6 +61,7 @@ def _generate_goodbye(xmlns, netconf_namespace, message_id):
 
 
 def _parse_response(xmlns, netconf_namespace, response):
+    """parse response from server with check to rpc-error"""
     xml_node = etree.XML(response)
     xml_dict = {}
     utils.generate_dict_node(
@@ -92,7 +94,8 @@ def _parse_response(xmlns, netconf_namespace, response):
 
 @operation
 def run(**kwargs):
-
+    """main entry point for all calls"""
+    # some random initial message id, for have different between calls
     message_id = int((time.time() * 100) % 100 * 1000)
 
     properties = ctx.node.properties
@@ -148,6 +151,7 @@ def run(**kwargs):
     response_dict = _parse_response(xmlns, netconf_namespace, response)
     ctx.logger.info("package will be :" + str(response_dict))
 
+    # save results to runtime properties
     save_to = kwargs.get('save_to')
     if save_to:
         ctx.instance.runtime_properties[save_to] = response_dict
