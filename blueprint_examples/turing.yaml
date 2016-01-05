@@ -131,6 +131,8 @@ node_types:
             _: urn:ietf:params:xml:ns:netconf:base:1.0
             turing: http://example.net/turing-machine
             t2: http://example.net/turing-machine/tape-2
+          capabilities:
+            - http://example.net/turing-machine?module=turing-machine&revision=2013-12-27
           relax_ng: 'content of xml'
           scematron: 'content of xml'
           yang_files:
@@ -204,17 +206,17 @@ node_templates:
         create:
           inputs:
             action: get-config
-            payload:  { get_property: [ turing-machine-update-config-impl, get-config ] }
+            payload: { get_property: [ turing-machine-update-config-impl, get-config ] }
             # save all results to saved-config
             save_to: saved-config
         configure:
           inputs:
             action: edit-config
-            payload:  { get_property: [ turing-machine-update-config-impl, edit-config ] }
+            payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
         start:
           inputs:
             action: turing@initialize
-            payload:  { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
+            payload: { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
 
   turing-machine-run-impl:
     type: turing-machine-run
@@ -225,7 +227,20 @@ node_templates:
         create:
           inputs:
             action: turing@run
-            payload:  { get_property: [ turing-machine-run-impl, turing@run ] }
+            payload: { get_property: [ turing-machine-run-impl, turing@run ] }
+        configure:
+          inputs:
+            action: get
+            # save all results to saved-config
+            save_to: new-config
+            payload:
+              source:
+                running: {}
+              filter:
+                _@@type: subtree
+                turing@turing-machine:
+                  turing@transition-function: {}
+
     relationships:
       - type: cloudify.relationships.contained_in
         target: turing-machine-update-config-impl
@@ -238,3 +253,5 @@ outputs:
       config: { get_attribute: [ turing-machine-update-config-impl, saved-config ] }
       #prefix ns - will be added automaticly
       config_ns: { get_attribute: [ turing-machine-update-config-impl, saved-config_ns ] }
+      new-config: { get_attribute: [ turing-machine-run-impl, new-config ] }
+      new-config_ns: { get_attribute: [ turing-machine-run-impl, new-config_ns ] }

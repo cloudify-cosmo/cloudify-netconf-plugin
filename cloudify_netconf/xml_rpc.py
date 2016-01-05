@@ -19,14 +19,18 @@ import utils
 import netconf_connection
 import time
 
+DEFAULT_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
 
-def _generate_hello(xmlns, netconf_namespace):
+
+
+def _generate_hello(xmlns, netconf_namespace, capabilities):
+    if not capabilities:
+        capabilities = []
+    if not DEFAULT_CAPABILITY in capabilities:
+        capabilities.append(DEFAULT_CAPABILITY)
     hello_dict = {
         netconf_namespace + '@capabilities': {
-            netconf_namespace + '@capability': [
-                'urn:ietf:params:netconf:base:1.0',
-                'http://example.net/turing-machine?module=turing-machine&revision=2013-12-27'
-            ]
+            netconf_namespace + '@capability': capabilities
         }
     }
 
@@ -97,13 +101,17 @@ def run(**kwargs):
         ctx.logger.info("No operations")
         return
     data = kwargs.get('payload', {})
+    xmlns = properties.get('metadata', {}).get('xmlns')
     netconf_namespace, xmlns = utils.update_xmlns(
-        properties.get('metadata', {}).get('xmlns')
+        xmlns
     )
+    capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
     ctx.logger.info(properties.get('netconf_auth'))
-    hello_string = _generate_hello(xmlns, netconf_namespace)
+    hello_string = _generate_hello(
+        xmlns, netconf_namespace, capabilities
+    )
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
     capabilities = netconf.connect(
