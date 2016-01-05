@@ -198,86 +198,6 @@ node_templates:
                     turing@symbol: 0
                     turing@state: 1
                     turing@head-move: right
-                - turing@label: 3
-                  turing@input:
-                    turing@symbol: 1
-                    turing@state: 1
-                  turing@output:
-                    turing@symbol: 1
-                    turing@state: 2
-                    turing@head-move: right
-                - turing@label: 4
-                  turing@input:
-                    turing@symbol: 1,
-                    turing@state: 2
-                  turing@output:
-                    turing@symbol: 1
-                    turing@state: 2
-                    turing@head-move: right
-                - turing@label: 5
-                  turing@input:
-                    turing@symbol: {}
-                    turing@state: 2
-                  turing@output:
-                    turing@symbol: {}
-                    turing@state: 3
-                    turing@head-move: left
-                - turing@label: 6
-                  turing@input:
-                    turing@symbol: 1
-                    turing@state: 3
-                  turing@output:
-                    turing@symbol: {}
-                    turing@state: 4
-                    turing@head-move: left
-                - turing@label: 7
-                  turing@input:
-                    turing@symbol: {}
-                    turing@state: 4
-                  turing@output:
-                    turing@symbol: {}
-                    turing@state: 7
-                    turing@head-move: right
-                - turing@label: 8
-                  turing@input:
-                    turing@symbol: 1
-                    turing@state: 4
-                  turing@output:
-                    turing@symbol: 1
-                    turing@state: 5
-                    turing@head-move: left
-                - turing@label: 9
-                  turing@input:
-                    turing@symbol: 1
-                    turing@state: 5
-                  turing@output:
-                    turing@symbol: 1
-                    turing@state: 5
-                    turing@head-move: left
-                - turing@label: 10
-                  turing@input:
-                    turing@symbol: 0
-                    turing@state: 5
-                  turing@output:
-                    turing@symbol: 0
-                    turing@state: 6
-                    turing@head-move: left
-                - turing@label: 11
-                  turing@input:
-                    turing@symbol: 0
-                    turing@state: 6
-                  turing@output:
-                    turing@symbol: 0
-                    turing@state: 6
-                    turing@head-move: left
-                - turing@label: 12
-                  turing@input:
-                    turing@symbol: {}
-                    turing@state: 6
-                  turing@output:
-                    turing@symbol: {}
-                    turing@state: 0
-                    turing@head-move: right
 
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -285,6 +205,8 @@ node_templates:
           inputs:
             action: get-config
             payload:  { get_property: [ turing-machine-update-config-impl, get-config ] }
+            # save all results to saved-config
+            save_to: saved-config
         configure:
           inputs:
             action: edit-config
@@ -307,3 +229,12 @@ node_templates:
     relationships:
       - type: cloudify.relationships.contained_in
         target: turing-machine-update-config-impl
+
+outputs:
+
+  endpoint:
+    description: Last config
+    value:
+      config: { get_attribute: [ turing-machine-update-config-impl, saved-config ] }
+      #prefix ns - will be added automaticly
+      config_ns: { get_attribute: [ turing-machine-update-config-impl, saved-config_ns ] }

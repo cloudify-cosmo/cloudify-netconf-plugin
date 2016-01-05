@@ -13,11 +13,11 @@
 # limitations under the License.
 from lxml import etree
 from cloudify import exceptions as cfy_exc
-import paramiko
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
+
 
 def _node_name(name, namespace, xmlns):
     attibute = False
@@ -46,8 +46,11 @@ def _node_name(name, namespace, xmlns):
         # we dont have such namespace
         return attibute, tag_namespace, name
 
+
 def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
-    attribute, tag_namespace, tag_name = _node_name(node_name, namespace, xmlns)
+    attribute, tag_namespace, tag_name = _node_name(
+        node_name, namespace, xmlns
+    )
     # attibute can't content complicated values, ignore attibute flag for now
     if not attribute or isinstance(value, dict):
         # can be separate node
@@ -71,9 +74,14 @@ def _gen_xml(parent, properties, xmlns, namespace, nsmap):
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:
-              _general_node(parent, node, value, xmlns, namespace, nsmap)
+                _general_node(
+                    parent, node, value, xmlns, namespace, nsmap
+                )
         else:
-            _general_node(parent, node, properties[node], xmlns, namespace, nsmap)
+            _general_node(
+                parent, node, properties[node], xmlns, namespace, nsmap
+            )
+
 
 def update_xmlns(xmlns):
     netconf_namespace = DEFAULT_NCNS
@@ -85,6 +93,7 @@ def update_xmlns(xmlns):
         xmlns[netconf_namespace] = NETCONF_NAMESPACE
     return netconf_namespace, xmlns
 
+
 def create_nsmap(xmlns):
     netconf_namespace, xmlns = update_xmlns(xmlns)
     nsmap = {}
@@ -95,19 +104,31 @@ def create_nsmap(xmlns):
             nsmap[None] = xmlns[k]
     return nsmap, netconf_namespace, xmlns
 
+
 def generate_xml_node(model, xmlns, parent_tag):
     if not xmlns:
         raise cfy_exc.NonRecoverableError(
             "node doesn't have any namespaces"
         )
     nsmap, netconf_namespace, xmlns = create_nsmap(xmlns)
-    # we does not support attibutes on top level, so for now ignore attibute flag
+    # we does not support attibutes on top level,
+    # so for now ignore attibute flag
     _, _, tag_name = _node_name(parent_tag, netconf_namespace, xmlns)
     parent = etree.Element(
         tag_name, nsmap=nsmap
     )
     _gen_xml(parent, model, xmlns, '_', nsmap)
     return parent
+
+
+def _get_free_ns(xmlns, namespace):
+    """search some not existed namespace name, ands save namespace"""
+    namespace_name = "_" + namespace.replace(":", "_")
+    while namespace_name in xmlns:
+        namespace_name = "_" + namespace_name + "_"
+    xmlns[namespace_name] = namespace
+    return namespace
+
 
 def _short_names(name, xmlns):
     if name[0] != "{":
@@ -119,6 +140,14 @@ def _short_names(name, xmlns):
                 return name.replace(fullnamespace, "")
             else:
                 return name.replace(fullnamespace, ns_short + "@")
+    # we dont have such namespace
+    namespace = name[1:]
+    if namespace.find("}"):
+        name = namespace[namespace.find("}") + 1:]
+        namespace = namespace[:namespace.find("}")]
+        return _get_free_ns(xmlns, namespace) + "@" + name
+    return name
+
 
 def _node_to_dict(parent, xml_node, xmlns):
     name = _short_names(xml_node.tag, xmlns)
@@ -143,38 +172,11 @@ def _node_to_dict(parent, xml_node, xmlns):
         if isinstance(previous, list):
             parent[name].append(value)
         else:
-            parent[name] = [previous,value]
+            parent[name] = [previous, value]
     else:
         parent[name] = value
+
 
 def generate_dict_node(parent, xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
-
-magic_end = "]]>]]>"
-
-def send_xml(chan, buff, xml):
-    chan.send(xml + magic_end)
-    while buff.find(magic_end) == -1:
-        buff += chan.recv(8192)
-    response = buff[:buff.find(magic_end)]
-    buf_end = buff[buff.find(magic_end) + len(magic_end):]
-    return buf_end, response
-
-def connect_to_netconf(ip, user, password, hello_string):
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
-        ip, username=user, password=password , port=830
-    )
-    chan = ssh.get_transport().open_session()
-    chan.invoke_subsystem('netconf')
-    buff = ""
-    buff, capabilities = send_xml(chan, buff, hello_string)
-    return capabilities, ssh, chan, buff
-
-def close_connection(chan, ssh, buff, goodbye_string):
-    buff, response = send_xml(chan, buff, goodbye_string)
-    chan.close()
-    ssh.close()
-    return buff, response

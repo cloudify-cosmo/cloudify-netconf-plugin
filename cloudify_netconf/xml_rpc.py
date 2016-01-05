@@ -13,42 +13,78 @@
 # limitations under the License.
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify import exceptions as cfy_exc
 from lxml import etree
 import utils
+import netconf_connection
 import time
 
-def _generate_hello(xmlns):
+
+def _generate_hello(xmlns, netconf_namespace):
     hello_dict = {
-            'rfc6020@capabilities': {
-                'rfc6020@capability': [
-                    'urn:ietf:params:netconf:base:1.0',
-                    'http://example.net/turing-machine?module=turing-machine&revision=2013-12-27'
-                ]
-            }
+        netconf_namespace + '@capabilities': {
+            netconf_namespace + '@capability': [
+                'urn:ietf:params:netconf:base:1.0',
+                'http://example.net/turing-machine?module=turing-machine&revision=2013-12-27'
+            ]
         }
+    }
 
     hello_xml = utils.generate_xml_node(
         hello_dict,
         xmlns,
-        'rfc6020@hello'
+        netconf_namespace + '@hello'
     )
     return etree.tostring(
         hello_xml, pretty_print=True, xml_declaration=True, encoding='UTF-8'
     )
 
-def _generate_goodbye(xmlns, message_id):
+
+def _generate_goodbye(xmlns, netconf_namespace, message_id):
     goodbye_dict = {
-        'rfc6020@close-session': None,
+        netconf_namespace + '@close-session': None,
         '_@@message-id': message_id
     }
     goodbye_xml = utils.generate_xml_node(
         goodbye_dict,
         xmlns,
-        'rfc6020@rpc'
+        netconf_namespace + '@rpc'
     )
     return etree.tostring(
         goodbye_xml, pretty_print=True, xml_declaration=True, encoding='UTF-8'
     )
+
+
+def _parse_response(xmlns, netconf_namespace, response):
+    xml_node = etree.XML(response)
+    xml_dict = {}
+    utils.generate_dict_node(
+        xml_dict, xml_node,
+        xmlns
+    )
+    reply = None
+    if 'rpc-reply' in xml_dict:
+        reply = xml_dict['rpc-reply']
+    elif (netconf_namespace + '@rpc-reply') in xml_dict:
+        # default namespace can't be not netconf 1.0
+        reply = xml_dict[netconf_namespace + '@rpc-reply']
+    if not reply:
+        raise cfy_exc.NonRecoverableError(
+            "unexpected reply struct"
+        )
+    # error check
+    error = None
+    if 'rpc-error' in reply:
+        error = reply['rpc-error']
+    elif (netconf_namespace + '@rpc-error') in reply:
+        # default namespace can't be not netconf 1.0
+        error = reply[netconf_namespace + '@rpc-error']
+    if error:
+        raise cfy_exc.NonRecoverableError(
+            "We have error in reply" + str(error)
+        )
+    return reply
+
 
 @operation
 def run(**kwargs):
@@ -56,8 +92,8 @@ def run(**kwargs):
     message_id = int((time.time() * 100) % 100 * 1000)
 
     properties = ctx.node.properties
-    operation = kwargs.get('action', 'get-config')
-    if not 'action' in kwargs:
+    operation = kwargs.get('action')
+    if not operation:
         ctx.logger.info("No operations")
         return
     data = kwargs.get('payload', {})
@@ -67,9 +103,10 @@ def run(**kwargs):
 
     # connect
     ctx.logger.info(properties.get('netconf_auth'))
-    hello_string = _generate_hello(xmlns)
+    hello_string = _generate_hello(xmlns, netconf_namespace)
     ctx.logger.info("i sent: " + hello_string)
-    capabilities, ssh, chan, buff = utils.connect_to_netconf(
+    netconf = netconf_connection.connection()
+    capabilities = netconf.connect(
         properties.get('netconf_auth', {}).get('ip'),
         properties.get('netconf_auth', {}).get('user'),
         properties.get('netconf_auth', {}).get('password'),
@@ -85,7 +122,7 @@ def run(**kwargs):
     else:
         action_name = netconf_namespace + "@" + operation
     new_node = {
-        action_name : data,
+        action_name: data,
         "_@@message-id": message_id
     }
     parent = utils.generate_xml_node(
@@ -97,14 +134,22 @@ def run(**kwargs):
         parent, pretty_print=True, xml_declaration=True, encoding='UTF-8'
     )
     ctx.logger.info("i sent: " + rpc_string)
-    buff, response = utils.send_xml(chan, buff, rpc_string)
+    response = netconf.send(rpc_string)
     ctx.logger.info("i recieved:" + response)
 
-    #goodbye
+    response_dict = _parse_response(xmlns, netconf_namespace, response)
+    ctx.logger.info("package will be :" + str(response_dict))
+
+    save_to = kwargs.get('save_to')
+    if save_to:
+        ctx.instance.runtime_properties[save_to] = response_dict
+        ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+
+    # goodbye
     ctx.logger.info("connection close")
     message_id = message_id + 1
-    goodbye_string = _generate_goodbye(xmlns, message_id)
+    goodbye_string = _generate_goodbye(xmlns, netconf_namespace, message_id)
     ctx.logger.info("i sent: " + goodbye_string)
 
-    buff, response = utils.close_connection(chan, ssh, buff, goodbye_string)
+    response = netconf.close(goodbye_string)
     ctx.logger.info("i recieved: " + response)
