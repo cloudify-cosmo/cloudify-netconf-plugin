@@ -18,6 +18,7 @@ NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
 
+
 def _node_name(name, namespace, xmlns):
     attibute = False
     tag_namespace = namespace
@@ -45,8 +46,11 @@ def _node_name(name, namespace, xmlns):
         # we dont have such namespace
         return attibute, tag_namespace, name
 
+
 def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
-    attribute, tag_namespace, tag_name = _node_name(node_name, namespace, xmlns)
+    attribute, tag_namespace, tag_name = _node_name(
+        node_name, namespace, xmlns
+    )
     # attibute can't content complicated values, ignore attibute flag for now
     if not attribute or isinstance(value, dict):
         # can be separate node
@@ -56,7 +60,9 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
         if isinstance(value, dict):
             _gen_xml(result, value, xmlns, tag_namespace, nsmap)
         else:
-            result.text = str(value)
+            if value is not None:
+                # dont add None value
+                result.text = str(value)
         parent.append(result)
     else:
         # attibute
@@ -68,11 +74,16 @@ def _gen_xml(parent, properties, xmlns, namespace, nsmap):
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:
-              _general_node(parent, node, value, xmlns, namespace, nsmap)
+                _general_node(
+                    parent, node, value, xmlns, namespace, nsmap
+                )
         else:
-            _general_node(parent, node, properties[node], xmlns, namespace, nsmap)
+            _general_node(
+                parent, node, properties[node], xmlns, namespace, nsmap
+            )
 
-def _update_xmlns(xmlns):
+
+def update_xmlns(xmlns):
     netconf_namespace = DEFAULT_NCNS
     for k in xmlns:
         if xmlns[k] == NETCONF_NAMESPACE:
@@ -82,38 +93,42 @@ def _update_xmlns(xmlns):
         xmlns[netconf_namespace] = NETCONF_NAMESPACE
     return netconf_namespace, xmlns
 
-def generate_xml_node(model, xmlns, action, parent_tag, message_id=None):
-    if not action:
-        raise cfy_exc.NonRecoverableError(
-            "node doesn't have action"
-        )
-    if not xmlns:
-        raise cfy_exc.NonRecoverableError(
-            "node doesn't have any namespaces"
-        )
-    netconf_namespace, xmlns = _update_xmlns(xmlns)
+
+def create_nsmap(xmlns):
+    netconf_namespace, xmlns = update_xmlns(xmlns)
     nsmap = {}
     for k in xmlns:
         if k != "_":
             nsmap[k] = xmlns[k]
         else:
             nsmap[None] = xmlns[k]
-    # we does not support attibutes on top level, so for now ignore attibute flag
+    return nsmap, netconf_namespace, xmlns
+
+
+def generate_xml_node(model, xmlns, parent_tag):
+    if not xmlns:
+        raise cfy_exc.NonRecoverableError(
+            "node doesn't have any namespaces"
+        )
+    nsmap, netconf_namespace, xmlns = create_nsmap(xmlns)
+    # we does not support attibutes on top level,
+    # so for now ignore attibute flag
     _, _, tag_name = _node_name(parent_tag, netconf_namespace, xmlns)
     parent = etree.Element(
         tag_name, nsmap=nsmap
     )
-    # we does not support attibutes on top level, so for now ignore attibute flag
-    _, _, tag_name = _node_name(action, "_", xmlns)
-    parent_action = etree.Element(
-        tag_name, nsmap=nsmap
-    )
-    parent.append(parent_action)
-    if message_id:
-       parent.attrib['message-id'] = str(message_id)
-    if model:
-        _gen_xml(parent_action, model, xmlns, '_', nsmap)
+    _gen_xml(parent, model, xmlns, '_', nsmap)
     return parent
+
+
+def _get_free_ns(xmlns, namespace):
+    """search some not existed namespace name, ands save namespace"""
+    namespace_name = "_" + namespace.replace(":", "_")
+    while namespace_name in xmlns:
+        namespace_name = "_" + namespace_name + "_"
+    xmlns[namespace_name] = namespace
+    return namespace
+
 
 def _short_names(name, xmlns):
     if name[0] != "{":
@@ -125,10 +140,19 @@ def _short_names(name, xmlns):
                 return name.replace(fullnamespace, "")
             else:
                 return name.replace(fullnamespace, ns_short + "@")
+    # we dont have such namespace
+    namespace = name[1:]
+    if namespace.find("}"):
+        name = namespace[namespace.find("}") + 1:]
+        namespace = namespace[:namespace.find("}")]
+        return _get_free_ns(xmlns, namespace) + "@" + name
+    return name
+
 
 def _node_to_dict(parent, xml_node, xmlns):
     name = _short_names(xml_node.tag, xmlns)
-    if xml_node.text:
+    if not xml_node.getchildren():
+        # we dont support text inside of node if we have subnodes
         value = xml_node.text
     else:
         value = {}
@@ -148,10 +172,11 @@ def _node_to_dict(parent, xml_node, xmlns):
         if isinstance(previous, list):
             parent[name].append(value)
         else:
-            parent[name] = [previous,value]
+            parent[name] = [previous, value]
     else:
         parent[name] = value
 
+
 def generate_dict_node(parent, xml_node, nslist):
-    netconf_namespace, xmlns = _update_xmlns(nslist)
+    netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
