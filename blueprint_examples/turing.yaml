@@ -205,18 +205,30 @@ node_templates:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
-            action: get-config
-            payload: { get_property: [ turing-machine-update-config-impl, get-config ] }
-            # save all results to saved-config
-            save_to: saved-config
+            calls:
+              - action: get-config
+                payload: { get_property: [ turing-machine-update-config-impl, get-config ] }
+                # save all results to saved-config
+                save_to: saved-config
         configure:
           inputs:
-            action: edit-config
-            payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
+            calls:
+              - action: lock
+                payload:
+                  target:
+                    running: {}
+              - action: edit-config
+                payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
+              - action: unlock
+                payload:
+                  target:
+                    running: {}
+
         start:
           inputs:
-            action: turing@initialize
-            payload: { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
+            calls:
+              - action: turing@initialize
+                payload: { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
 
   turing-machine-run-impl:
     type: turing-machine-run
@@ -226,20 +238,22 @@ node_templates:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
-            action: turing@run
-            payload: { get_property: [ turing-machine-run-impl, turing@run ] }
+            calls:
+              - action: turing@run
+                payload: { get_property: [ turing-machine-run-impl, turing@run ] }
         configure:
           inputs:
-            action: get
-            # save all results to saved-config
-            save_to: new-config
-            payload:
-              source:
-                running: {}
-              filter:
-                _@@type: subtree
-                turing@turing-machine:
-                  turing@transition-function: {}
+            calls:
+              - action: get
+                # save all results to saved-config
+                save_to: new-config
+                payload:
+                  source:
+                    running: {}
+                  filter:
+                    _@@type: subtree
+                    turing@turing-machine:
+                      turing@transition-function: {}
 
     relationships:
       - type: cloudify.relationships.contained_in

@@ -95,15 +95,16 @@ def _parse_response(xmlns, netconf_namespace, response):
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
+
+    calls = kwargs.get('calls', [])
+    if not calls:
+        ctx.logger.info("No calls")
+        return
+
     # some random initial message id, for have different between calls
     message_id = int((time.time() * 100) % 100 * 1000)
 
     properties = ctx.node.properties
-    operation = kwargs.get('action')
-    if not operation:
-        ctx.logger.info("No operations")
-        return
-    data = kwargs.get('payload', {})
     xmlns = properties.get('metadata', {}).get('xmlns')
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
@@ -125,37 +126,49 @@ def run(**kwargs):
     )
     ctx.logger.info("i recieved: " + capabilities)
 
-    # rpc
-    ctx.logger.info("rpc call")
-    message_id = message_id + 1
-    if "@" in operation:
-        action_name = operation
-    else:
-        action_name = netconf_namespace + "@" + operation
-    new_node = {
-        action_name: data,
-        "_@@message-id": message_id
-    }
-    parent = utils.generate_xml_node(
-        new_node,
-        xmlns,
-        'rpc'
-    )
-    rpc_string = etree.tostring(
-        parent, pretty_print=True, xml_declaration=True, encoding='UTF-8'
-    )
-    ctx.logger.info("i sent: " + rpc_string)
-    response = netconf.send(rpc_string)
-    ctx.logger.info("i recieved:" + response)
+    # we can have several calls in one session,
+    # like lock, edit-config, unlock
+    for call in calls:
+        operation = call.get('action')
+        if not operation:
+            ctx.logger.info("No operations")
+            return
+        data = call.get('payload', {})
 
-    response_dict = _parse_response(xmlns, netconf_namespace, response)
-    ctx.logger.info("package will be :" + str(response_dict))
+        # rpc
+        ctx.logger.info("rpc call")
+        message_id = message_id + 1
+        if "@" in operation:
+            action_name = operation
+        else:
+            action_name = netconf_namespace + "@" + operation
+        new_node = {
+            action_name: data,
+            "_@@message-id": message_id
+        }
+        parent = utils.generate_xml_node(
+            new_node,
+            xmlns,
+            'rpc'
+        )
+        rpc_string = etree.tostring(
+            parent, pretty_print=True, xml_declaration=True,
+            encoding='UTF-8'
+        )
+        ctx.logger.info("i sent: " + rpc_string)
+        response = netconf.send(rpc_string)
+        ctx.logger.info("i recieved:" + response)
 
-    # save results to runtime properties
-    save_to = kwargs.get('save_to')
-    if save_to:
-        ctx.instance.runtime_properties[save_to] = response_dict
-        ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+        response_dict = _parse_response(
+            xmlns, netconf_namespace, response
+        )
+        ctx.logger.info("package will be :" + str(response_dict))
+
+        # save results to runtime properties
+        save_to = call.get('save_to')
+        if save_to:
+            ctx.instance.runtime_properties[save_to] = response_dict
+            ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
 
     # goodbye
     ctx.logger.info("connection close")
