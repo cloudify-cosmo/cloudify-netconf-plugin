@@ -15,9 +15,10 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from lxml import etree
-import utils
 import netconf_connection
 import time
+import utils
+
 
 DEFAULT_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
 
@@ -138,18 +139,8 @@ def run(**kwargs):
         # rpc
         ctx.logger.info("rpc call")
         message_id = message_id + 1
-        if "@" in operation:
-            action_name = operation
-        else:
-            action_name = netconf_namespace + "@" + operation
-        new_node = {
-            action_name: data,
-            "_@@message-id": message_id
-        }
-        parent = utils.generate_xml_node(
-            new_node,
-            xmlns,
-            'rpc'
+        parent = utils.rpc_gen(
+            message_id, operation, netconf_namespace, data, xmlns
         )
         rpc_string = etree.tostring(
             parent, pretty_print=True, xml_declaration=True,

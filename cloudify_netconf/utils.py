@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from lxml import etree
 from cloudify import exceptions as cfy_exc
+from lxml import etree
+
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
 # default netconf namespace short name
@@ -180,3 +181,19 @@ def _node_to_dict(parent, xml_node, xmlns):
 def generate_dict_node(parent, xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
+
+
+def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
+    if "@" in operation:
+        action_name = operation
+    else:
+        action_name = netconf_namespace + "@" + operation
+    new_node = {
+        action_name: data,
+        "_@@message-id": message_id
+    }
+    return generate_xml_node(
+        new_node,
+        xmlns,
+        'rpc'
+    )

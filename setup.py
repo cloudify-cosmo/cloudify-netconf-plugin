@@ -10,6 +10,7 @@ setup(
     author_email='pauk.denis@gmail.com',
     license='LICENSE',
     packages=['cloudify_netconf'],
+    scripts=['tools/yaml2netconfxml.py', 'tools/netconfxml2yaml.py'],
     install_requires=[
         'cloudify-plugins-common>=3.3',
     ]
