@@ -221,8 +221,7 @@ node_templates:
                 payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
                 validation:
                   xpath: /_:rpc/_:edit-config/_:config
-                  rng: '<?xml version=''1.0'' ?>
-                    <grammar xmlns:tm="http://example.net/turing-machine" xmlns="http://relaxng.org/ns/structure/1.0"
+                  rng: '<grammar xmlns:tm="http://example.net/turing-machine" xmlns="http://relaxng.org/ns/structure/1.0"
                     xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
                     xmlns:en="urn:ietf:params:xml:ns:netconf:notification:1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
                     ns="urn:ietf:params:xml:ns:netconf:base:1.0"><define name="__anyxml__"><zeroOrMore><choice><element><anyName/><ref
@@ -254,9 +253,7 @@ node_templates:
                     name="tm:symbol"><ref name="turing-machine__tape-symbol"/></element></optional><optional><element
                     name="tm:head-move"><ref name="turing-machine__head-dir"/></element></optional></interleave></element></optional></interleave></element></zeroOrMore></element></optional></interleave></element></start></grammar></interleave></element></start></grammar>'
 
-                  sch: '<?xml version=''1.0''?>
-
-                    <sch:schema xmlns:sch="http://purl.oclc.org/dsdl/schematron" queryBinding="exslt"><sch:ns
+                  sch: '<sch:schema xmlns:sch="http://purl.oclc.org/dsdl/schematron" queryBinding="exslt"><sch:ns
                     uri="http://exslt.org/dynamic" prefix="dyn"/><sch:ns uri="http://example.net/turing-machine"
                     prefix="tm"/><sch:ns uri="urn:ietf:params:xml:ns:netconf:base:1.0" prefix="nc"/><sch:let
                     name="root" value="/nc:config"/><sch:pattern abstract="true" id="turing-machine___tape-cells"><sch:rule

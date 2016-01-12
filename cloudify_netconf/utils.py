@@ -13,6 +13,7 @@
 # limitations under the License.
 from cloudify import exceptions as cfy_exc
 from lxml import etree
+from lxml import isoschematron
 
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -197,3 +198,33 @@ def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
         xmlns,
         'rpc'
     )
+
+
+def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
+    """Validate xml by rng and sch"""
+    if xpath:
+
+        # rng rules
+        relaxng = None
+        if rng:
+            rng_node = etree.XML(rng)
+            relaxng = etree.RelaxNG(rng_node)
+
+        # schematron rules
+        schematron = None
+        if sch:
+            sch_node = etree.XML(sch)
+            schematron = isoschematron.Schematron(sch_node)
+
+        # run validation
+        for node in parent.xpath(xpath, namespaces=xmlns):
+            if relaxng:
+                if not relaxng.validate(node):
+                    raise cfy_exc.NonRecoverableError(
+                        "Not valid xml by rng"
+                    )
+            if schematron:
+                if not schematron.validate(node):
+                    raise cfy_exc.NonRecoverableError(
+                        "Not valid xml by Schematron"
+                    )

@@ -16,7 +16,7 @@ from lxml import etree
 from lxml import isoschematron
 import sys
 import yaml
-from StringIO import StringIO
+
 
 help_message = """
 usage: python netconfxml2yaml.py rpc.xml [rpc.rng [rpc.sch]]
@@ -54,11 +54,7 @@ if __name__ == "__main__":
             if len(sys.argv) > 2:
                 rng_rpc = open(sys.argv[2], 'rb')
                 with rng_rpc:
-                    data = StringIO(rng_rpc.read())
-                    tree = etree.parse(data)
-                    tree.xinclude()
-                    rng = tree.getroot()
-                    #rng = etree.XML(rng_rpc.read())
+                    rng = etree.XML(rng_rpc.read())
             if rng is not None:
                 relaxng = etree.RelaxNG(rng)
                 if not relaxng.validate(xml_node):
@@ -83,12 +79,10 @@ if __name__ == "__main__":
             }
             if rng is not None:
                 result['rng'] = etree.tostring(
-                    rng, pretty_print=False, xml_declaration=True,
-                    encoding='UTF-8'
+                    rng, pretty_print=False
                 )
             if sch is not None:
                 result['sch'] = etree.tostring(
-                    sch, pretty_print=False, xml_declaration=True,
-                    encoding='UTF-8'
+                    sch, pretty_print=False
                 )
             print(yaml.dump(result))
