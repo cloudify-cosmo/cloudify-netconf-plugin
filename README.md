@@ -18,4 +18,5 @@ For check generation:
 * yaml to xml: yaml2netconfxml.py cloudify-netconf-plugin/blueprint_examples/rpc.yaml
 * generate validation rules:
   cd tools/examples
+  yang2dsdl -t config turing-machine.yang
   netconfxml2yaml.py config.xml turing-machine-config.rng  turing-machine-config.sch

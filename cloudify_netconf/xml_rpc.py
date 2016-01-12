@@ -15,6 +15,7 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from lxml import etree
+from lxml import isoschematron
 import netconf_connection
 import time
 import utils
@@ -142,6 +143,37 @@ def run(**kwargs):
         parent = utils.rpc_gen(
             message_id, operation, netconf_namespace, data, xmlns
         )
+        # validate rpc
+        validation = call.get('validation',{})
+        xpath = validation.get('xpath')
+        if xpath:
+            ctx.logger.info("We have some validation rules")
+
+            rng = validation.get('rng')
+            relaxng = None
+            if rng:
+                ctx.logger.info(rng)
+                rng_node = etree.XML(rng)
+                relaxng = etree.RelaxNG(rng_node)
+
+            sch = validation.get('sch')
+            schematron = None
+            if sch:
+                sch_node = etree.XML(sch)
+                schematron = isoschematron.Schematron(sch_node)
+
+            for node in parent.xpath(xpath, namespaces=xmlns):
+                if relaxng:
+                    if not relaxng.validate(node):
+                        raise cfy_exc.NonRecoverableError(
+                            "Not valid xml by rng"
+                        )
+                if schematron:
+                    if not schematron.validate(node):
+                        raise cfy_exc.NonRecoverableError(
+                            "Not valid xml by Schematron"
+                        )
+
         rpc_string = etree.tostring(
             parent, pretty_print=True, xml_declaration=True,
             encoding='UTF-8'
