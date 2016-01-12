@@ -13,12 +13,13 @@
 # limitations under the License.
 import cloudify_netconf.utils as utils
 from lxml import etree
+from lxml import isoschematron
 import sys
 import yaml
-
+from StringIO import StringIO
 
 help_message = """
-usage: python netconfxml2yaml.py rpc.xml
+usage: python netconfxml2yaml.py rpc.xml [rpc.rng [rpc.sch]]
 
 In rpc.xml:
 -------------------
@@ -39,7 +40,7 @@ In rpc.xml:
 -------------------
 """
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2 and len(sys.argv) > 4:
         print(help_message)
     else:
         xml_rpc = open(sys.argv[1], 'rb')
@@ -49,6 +50,28 @@ if __name__ == "__main__":
             }
             xml_text = xml_rpc.read()
             xml_node = etree.XML(xml_text)
+            rng = None
+            if len(sys.argv) > 2:
+                rng_rpc = open(sys.argv[2], 'rb')
+                with rng_rpc:
+                    data = StringIO(rng_rpc.read())
+                    tree = etree.parse(data)
+                    tree.xinclude()
+                    rng = tree.getroot()
+                    #rng = etree.XML(rng_rpc.read())
+            if rng is not None:
+                relaxng = etree.RelaxNG(rng)
+                if not relaxng.validate(xml_node):
+                    print ("You have issues with relaxng")
+            sch = None
+            if len(sys.argv) > 3:
+                sch_rpc = open(sys.argv[3], 'rb')
+                with sch_rpc:
+                    sch = etree.XML(sch_rpc.read())
+            if sch is not None:
+                schematron = isoschematron.Schematron(sch)
+                if not schematron.validate(xml_node):
+                    print ("You have issues with Schematron")
             xml_dict = {}
             utils.generate_dict_node(
                 xml_dict, xml_node,
@@ -58,4 +81,14 @@ if __name__ == "__main__":
                 'payload': xml_dict,
                 'ns': xmlns
             }
+            if rng is not None:
+                result['rng'] = etree.tostring(
+                    rng, pretty_print=False, xml_declaration=True,
+                    encoding='UTF-8'
+                )
+            if sch is not None:
+                result['sch'] = etree.tostring(
+                    sch, pretty_print=False, xml_declaration=True,
+                    encoding='UTF-8'
+                )
             print(yaml.dump(result))
