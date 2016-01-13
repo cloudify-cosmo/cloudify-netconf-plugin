@@ -153,8 +153,9 @@ def _short_names(name, xmlns):
 
 def _node_to_dict(parent, xml_node, xmlns):
     name = _short_names(xml_node.tag, xmlns)
-    if not xml_node.getchildren():
-        # we dont support text inside of node if we have subnodes
+    if not xml_node.getchildren() and not xml_node.attrib:
+        # we dont support text inside of node
+        # if we have subnodes or attibutes
         value = xml_node.text
     else:
         value = {}
