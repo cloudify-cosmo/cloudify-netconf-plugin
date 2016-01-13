@@ -17,6 +17,8 @@ from lxml import isoschematron
 
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
+RELAXNG_NAMESPACE = 'http://relaxng.org/ns/structure/1.0'
+
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
 
@@ -229,3 +231,58 @@ def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
                     raise cfy_exc.NonRecoverableError(
                         "Not valid xml by Schematron"
                     )
+
+
+# relaxng specific parts
+def load_xml(path):
+    """load xml file, without any checks for errors"""
+    rng_rpc = open(path, 'rb')
+    with rng_rpc:
+        return etree.XML(rng_rpc.read())
+
+
+def default_xmlns():
+    """default namespace list for relaxng"""
+    return {
+        '_': NETCONF_NAMESPACE,
+        'relaxng': RELAXNG_NAMESPACE
+    }
+
+
+def _make_node_copy(xml_orig, nsmap=None):
+    """copy nodes with namespaces from parent"""
+    if nsmap is None:
+        nsmap = {}
+    clone_nsmap = {}
+    for ns in nsmap:
+        clone_nsmap[ns] = nsmap[ns]
+    for ns in xml_orig.nsmap:
+        clone_nsmap[ns] = xml_orig.nsmap[ns]
+    clone = etree.Element(
+        xml_orig.tag, nsmap=clone_nsmap
+    )
+    for tag in xml_orig.attrib:
+        clone.attrib[tag] = xml_orig.attrib[tag]
+    for node in xml_orig.getchildren():
+        clone.append(_make_node_copy(node, clone_nsmap))
+    clone.text = xml_orig.text
+    return clone
+
+
+def load_relaxng_includes(xml_node, xmlns):
+    """will replace all includes by real content"""
+    nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
+    grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
+    while len(nodes):
+        for node in nodes:
+            parent = node.getparent()
+            if parent is not None:
+                parent.remove(node)
+                if 'href' in node.attrib:
+                    subnodes = load_xml(node.attrib['href'])
+                    if subnodes.tag == grammar_name:
+                        for subnode in subnodes.getchildren():
+                            parent.append(
+                                _make_node_copy(subnode, subnodes.nsmap)
+                            )
+        nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)

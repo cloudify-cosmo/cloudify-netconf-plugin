@@ -17,7 +17,6 @@ from lxml import isoschematron
 import sys
 import yaml
 
-
 help_message = """
 usage: python netconfxml2yaml.py rpc.xml [rpc.rng [rpc.sch]]
 
@@ -43,46 +42,38 @@ if __name__ == "__main__":
     if len(sys.argv) < 2 and len(sys.argv) > 4:
         print(help_message)
     else:
-        xml_rpc = open(sys.argv[1], 'rb')
-        with xml_rpc:
-            xmlns = {
-                '_': utils.NETCONF_NAMESPACE
-            }
-            xml_text = xml_rpc.read()
-            xml_node = etree.XML(xml_text)
-            rng = None
-            if len(sys.argv) > 2:
-                rng_rpc = open(sys.argv[2], 'rb')
-                with rng_rpc:
-                    rng = etree.XML(rng_rpc.read())
-            if rng is not None:
-                relaxng = etree.RelaxNG(rng)
-                if not relaxng.validate(xml_node):
-                    print ("You have issues with relaxng")
-            sch = None
-            if len(sys.argv) > 3:
-                sch_rpc = open(sys.argv[3], 'rb')
-                with sch_rpc:
-                    sch = etree.XML(sch_rpc.read())
-            if sch is not None:
-                schematron = isoschematron.Schematron(sch)
-                if not schematron.validate(xml_node):
-                    print ("You have issues with Schematron")
-            xml_dict = {}
-            utils.generate_dict_node(
-                xml_dict, xml_node,
-                xmlns
+        xmlns = utils.default_xmlns()
+        xml_node = utils.load_xml(sys.argv[1])
+        rng = None
+        if len(sys.argv) > 2:
+            rng = utils.load_xml(sys.argv[2])
+        if rng is not None:
+            relaxng = etree.RelaxNG(rng)
+            if not relaxng.validate(xml_node):
+                print ("You have issues with relaxng")
+        sch = None
+        if len(sys.argv) > 3:
+            sch = utils.load_xml(sys.argv[3])
+        if sch is not None:
+            schematron = isoschematron.Schematron(sch)
+            if not schematron.validate(xml_node):
+                print ("You have issues with Schematron")
+        xml_dict = {}
+        utils.generate_dict_node(
+            xml_dict, xml_node,
+            xmlns
+        )
+        result = {
+            'payload': xml_dict,
+            'ns': xmlns
+        }
+        if rng is not None:
+            utils.load_relaxng_includes(rng, xmlns)
+            result['rng'] = etree.tostring(
+                rng, pretty_print=False
             )
-            result = {
-                'payload': xml_dict,
-                'ns': xmlns
-            }
-            if rng is not None:
-                result['rng'] = etree.tostring(
-                    rng, pretty_print=False
-                )
-            if sch is not None:
-                result['sch'] = etree.tostring(
-                    sch, pretty_print=False
-                )
-            print(yaml.dump(result))
+        if sch is not None:
+            result['sch'] = etree.tostring(
+                sch, pretty_print=False
+            )
+        print(yaml.dump(result))
