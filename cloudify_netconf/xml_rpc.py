@@ -81,12 +81,16 @@ def _parse_response(xmlns, netconf_namespace, response):
         )
     # error check
     error = None
+    # we can have empty error, so we need additional flag for that
+    have_error = False
     if 'rpc-error' in reply:
         error = reply['rpc-error']
+        have_error = True
     elif (netconf_namespace + '@rpc-error') in reply:
         # default namespace can't be not netconf 1.0
         error = reply[netconf_namespace + '@rpc-error']
-    if error:
+        have_error = True
+    if have_error:
         raise cfy_exc.NonRecoverableError(
             "We have error in reply" + str(error)
         )
@@ -102,11 +106,21 @@ def run(**kwargs):
         ctx.logger.info("No calls")
         return
 
+    # credentials
+    properties = ctx.node.properties
+    ip = properties.get('netconf_auth', {}).get('ip')
+    user = properties.get('netconf_auth', {}).get('user')
+    password = properties.get('netconf_auth', {}).get('password')
+    if not ip or not user or not password:
+        raise cfy_exc.NonRecoverableError(
+            "please check your credentials"
+        )
+
     # some random initial message id, for have different between calls
     message_id = int((time.time() * 100) % 100 * 1000)
 
-    properties = ctx.node.properties
-    xmlns = properties.get('metadata', {}).get('xmlns')
+    # xml namespaces and capabilities
+    xmlns = properties.get('metadata', {}).get('xmlns', {})
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
@@ -119,12 +133,7 @@ def run(**kwargs):
     )
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
-    capabilities = netconf.connect(
-        properties.get('netconf_auth', {}).get('ip'),
-        properties.get('netconf_auth', {}).get('user'),
-        properties.get('netconf_auth', {}).get('password'),
-        hello_string
-    )
+    capabilities = netconf.connect(ip, user, password, hello_string)
     ctx.logger.info("i recieved: " + capabilities)
 
     # we can have several calls in one session,
@@ -133,7 +142,7 @@ def run(**kwargs):
         operation = call.get('action')
         if not operation:
             ctx.logger.info("No operations")
-            return
+            continue
         data = call.get('payload', {})
 
         # rpc

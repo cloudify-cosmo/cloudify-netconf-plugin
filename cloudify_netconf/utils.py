@@ -43,6 +43,10 @@ def _node_name(name, namespace, xmlns):
                 raise cfy_exc.NonRecoverableError(
                     "wrong format of xml element name"
                 )
+    # looks as empty namespace
+    if tag_namespace == "":
+        tag_namespace = namespace
+    # replace to real ns
     if tag_namespace in xmlns:
         # we can use such namespace
         return attibute, tag_namespace, "{%s}%s" % (xmlns[tag_namespace], name)
@@ -55,7 +59,8 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
     attribute, tag_namespace, tag_name = _node_name(
         node_name, namespace, xmlns
     )
-    # attibute can't content complicated values, ignore attibute flag for now
+    # attibute can't contain complicated values, ignore attribute flag
+    # for now
     if not attribute or isinstance(value, dict):
         # can be separate node
         result = etree.Element(
@@ -125,16 +130,44 @@ def generate_xml_node(model, xmlns, parent_tag):
     return parent
 
 
-def _get_free_ns(xmlns, namespace):
+def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
+    if "@" in operation:
+        action_name = operation
+    else:
+        action_name = netconf_namespace + "@" + operation
+    new_node = {
+        action_name: data,
+        "_@@message-id": message_id
+    }
+    return generate_xml_node(
+        new_node,
+        xmlns,
+        'rpc'
+    )
+
+
+def _get_free_ns(xmlns, namespace, prefered_ns=None):
     """search some not existed namespace name, ands save namespace"""
-    namespace_name = "_" + namespace.replace(":", "_")
+    # search maybe we have some cool name for it
+    namespace_name = None
+    if prefered_ns:
+        for ns in prefered_ns:
+            if ns is not None and prefered_ns[ns] == namespace:
+                # we have some short and cool name
+                namespace_name = ns
+                break
+    # we dont have cool names, create ugly
+    if not namespace_name:
+        namespace_name = "_" + namespace.replace(":", "_")
+        namespace_name = namespace_name.replace("/", "_")
+    # save uniq for namespace name
     while namespace_name in xmlns:
         namespace_name = "_" + namespace_name + "_"
     xmlns[namespace_name] = namespace
-    return namespace
+    return namespace_name
 
 
-def _short_names(name, xmlns):
+def _short_names(name, xmlns, nsmap=None):
     if name[0] != "{":
         return name
     for ns_short in xmlns:
@@ -144,17 +177,16 @@ def _short_names(name, xmlns):
                 return name.replace(fullnamespace, "")
             else:
                 return name.replace(fullnamespace, ns_short + "@")
-    # we dont have such namespace
+    # we dont have such namespace,
+    # in any case we will have } in string if we have used lxml
     namespace = name[1:]
-    if namespace.find("}"):
-        name = namespace[namespace.find("}") + 1:]
-        namespace = namespace[:namespace.find("}")]
-        return _get_free_ns(xmlns, namespace) + "@" + name
-    return name
+    name = namespace[namespace.find("}") + 1:]
+    namespace = namespace[:namespace.find("}")]
+    return _get_free_ns(xmlns, namespace, nsmap) + "@" + name
 
 
 def _node_to_dict(parent, xml_node, xmlns):
-    name = _short_names(xml_node.tag, xmlns)
+    name = _short_names(xml_node.tag, xmlns, xml_node.nsmap)
     if not xml_node.getchildren() and not xml_node.attrib:
         # we dont support text inside of node
         # if we have subnodes or attibutes
@@ -164,7 +196,7 @@ def _node_to_dict(parent, xml_node, xmlns):
         for i in xml_node.getchildren():
             _node_to_dict(value, i, xmlns)
         for k in xml_node.attrib:
-            k_short = _short_names(k, xmlns)
+            k_short = _short_names(k, xmlns, xml_node.nsmap)
             if '@' in k_short:
                 # already have namespace
                 k_short = "_@" + k_short
@@ -185,22 +217,6 @@ def _node_to_dict(parent, xml_node, xmlns):
 def generate_dict_node(parent, xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
-
-
-def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
-    if "@" in operation:
-        action_name = operation
-    else:
-        action_name = netconf_namespace + "@" + operation
-    new_node = {
-        action_name: data,
-        "_@@message-id": message_id
-    }
-    return generate_xml_node(
-        new_node,
-        xmlns,
-        'rpc'
-    )
 
 
 def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
@@ -249,10 +265,8 @@ def default_xmlns():
     }
 
 
-def _make_node_copy(xml_orig, nsmap=None):
+def _make_node_copy(xml_orig, nsmap):
     """copy nodes with namespaces from parent"""
-    if nsmap is None:
-        nsmap = {}
     clone_nsmap = {}
     for ns in nsmap:
         clone_nsmap[ns] = nsmap[ns]
