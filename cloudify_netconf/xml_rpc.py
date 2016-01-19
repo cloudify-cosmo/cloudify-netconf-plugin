@@ -111,7 +111,8 @@ def run(**kwargs):
     ip = properties.get('netconf_auth', {}).get('ip')
     user = properties.get('netconf_auth', {}).get('user')
     password = properties.get('netconf_auth', {}).get('password')
-    if not ip or not user or not password:
+    key_content = properties.get('netconf_auth', {}).get('key_content')
+    if not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
         )
@@ -127,13 +128,15 @@ def run(**kwargs):
     capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
-    ctx.logger.info(properties.get('netconf_auth'))
+    ctx.logger.info("use %s@%s for login" % (user, ip))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
-    capabilities = netconf.connect(ip, user, password, hello_string)
+    capabilities = netconf.connect(
+        ip, user, hello_string, password, key_content
+    )
     ctx.logger.info("i recieved: " + capabilities)
 
     # we can have several calls in one session,

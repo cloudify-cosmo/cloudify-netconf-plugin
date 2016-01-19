@@ -65,7 +65,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         netconf.chan.close.assert_called_with()
         netconf.ssh.close.assert_called_with()
 
-    def test_connect(self):
+    def test_connect_with_password(self):
         """connect call"""
         # ssh mock
         will_be_ssh = mock.Mock()
@@ -97,7 +97,8 @@ class nwtConfConnectionMockTest(unittest.TestCase):
             ) as mock_policy:
                 netconf = netconf_connection.connection()
                 message = netconf.connect(
-                    "127.0.0.100", "me", "unknow", "hi"
+                    "127.0.0.100", "me", hello_string="hi",
+                    password="unknow"
                 )
         # check calls
         self.assertEqual(message, "ok")
@@ -115,6 +116,62 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         channel_mock.send.assert_called_with(
             "hi" + netconf_connection.connection.MAGIC_END
         )
+
+    def test_connect_with_key(self):
+        """connect call"""
+        # ssh mock
+        will_be_ssh = mock.Mock()
+        will_be_ssh.set_missing_host_key_policy = mock.MagicMock()
+        will_be_ssh.connect = mock.MagicMock()
+        # channel mock
+        channel_mock = mock.Mock()
+        channel_mock.recv = mock.MagicMock(
+            return_value=(
+                "ok" + netconf_connection.connection.MAGIC_END
+            )
+        )
+        channel_mock.send = mock.MagicMock()
+        channel_mock.invoke_subsystem = mock.MagicMock()
+        # transport mock
+        transport_mock = mock.MagicMock()
+        transport_mock.open_session = mock.MagicMock(
+            return_value=channel_mock
+        )
+        will_be_ssh.get_transport = mock.MagicMock(
+            return_value=transport_mock
+        )
+
+        with mock.patch.object(
+            paramiko, 'SSHClient', return_value=will_be_ssh
+        ) as mock_ssh_client:
+            with mock.patch.object(
+                paramiko, 'AutoAddPolicy', return_value="I'm policy"
+            ) as mock_policy:
+                with mock.patch.object(
+                    paramiko.RSAKey, 'from_private_key', return_value="secret"
+                ) as mock_rsa_key:
+                    netconf = netconf_connection.connection()
+                    message = netconf.connect(
+                        "127.0.0.100", "me", hello_string="hi",
+                        key_content="unknow"
+                    )
+        # check calls
+        self.assertEqual(message, "ok")
+        mock_ssh_client.assert_called_with()
+        mock_policy.assert_called_with()
+        will_be_ssh.set_missing_host_key_policy.assert_called_with(
+            "I'm policy"
+        )
+        will_be_ssh.connect.assert_called_with(
+            '127.0.0.100', username='me', pkey='secret', port=830
+        )
+        will_be_ssh.get_transport.assert_called_with()
+        transport_mock.open_session.assert_called_with()
+        channel_mock.invoke_subsystemassert_called_with('netconf')
+        channel_mock.send.assert_called_with(
+            "hi" + netconf_connection.connection.MAGIC_END
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

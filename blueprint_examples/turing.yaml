@@ -23,108 +23,77 @@ inputs:
        netconf server user password
     default: netconf
 
+  netconf_key_content:
+    type: string
+    description: >
+       netconf server user rsa key content, can be used instead password
+    default: ""
+
+data_types:
+  config:
+    properties:
+      turing-machine:
+        required: false
+        type: turing-machine
+  delta:
+    properties:
+      input:
+        required: false
+        type: input
+      label:
+        required: false
+        type: string
+      output:
+        required: false
+        type: output
+  edit-config:
+    properties:
+      config:
+        type: config
+      target:
+        default: running
+  initialize:
+    properties:
+      tape-content:
+        default: ''
+        required: false
+        type: string
+  input:
+    properties:
+      state:
+        required: true
+      symbol:
+        required: true
+  output:
+    properties:
+      head-move:
+        required: false
+      state:
+        required: false
+      symbol:
+        required: false
+  transition-function:
+    properties:
+      delta:
+        description: '[List_of: delta] '
+        required: false
+  turing-machine:
+    properties:
+      transition-function:
+        required: false
+        type: transition-function
+
 node_types:
 
   turing-machine:
     derived_from: cloudify.netconf.nodes.xml_rpc
     properties:
-      schema:
-        default:
-          turing-machine:
-            description: "State data and configuration of a Turing Machine."
-            keyword: container
-            children:
-              state:
-                keyword: leaf
-                type: state-index
-                config: false
-                mandatory: true
-                description: "Current state of the control unit. The initial state is 0."
-              head-position:
-                keyword: leaf
-                type: cell-index
-                config: false
-                mandatory: true
-                description: "Position of tape read/write head."
-              tape:
-                keyword: container
-                config: false
-                description: "The contents of the tape."
-                children:
-                  cell:
-                    keyword: list
-                    key: coord
-                    description: "List of non-blank cells."
-                    children:
-                      coord:
-                        type: cell-index
-                        keyword: leaf
-                        description: "Coordinate (index) of the tape cell."
-                      symbol:
-                        keyword: leaf
-                        type: tape-symbol
-                        description: "Symbol appearing in the tape cell."
-              transition-function:
-                description: "The Turing Machine is configured by specifying the transition function."
-                keyword: container
-                children:
-                  delta:
-                    keyword: list
-                    key: label
-                    description: The list of transition rules.
-                    children:
-                        label:
-                          keyword: leaf
-                          type: string
-                          description: "An arbitrary label of the transition rule."
-                        input:
-                          keyword: container
-                          description: "Input parameters (arguments) of the transition rule."
-                          children:
-                            state:
-                              type: state-index
-                              keyword: leaf
-                              description: "Current state of the control unit."
-                            symbol:
-                              type: tape-symbol
-                              keyword: leaf
-                              description: "Symbol read from the tape cell."
-                        output:
-                          keyword: container
-                          description: "Output values of the transition rule."
-                          children:
-                            state:
-                              type: state-index
-                              keyword: leaf
-                              description: "New state of the control unit. If this leaf is not present, the state doesn't change."
-                            symbol:
-                              type: tape-symbol
-                              keyword: leaf
-                              description: "Symbol to be written to the tape cell. If this leaf is not present, the symbol doesn't change."
-                            head-move:
-                              type: head-dir
-                              keyword: leaf
-                              description: "Move the head one cell to the left or right"
-          initialize:
-            keyword: rpc
-            description: "Initialize the Turing Machine"
-            input:
-              tape-content:
-                keyword: leaf
-                type: string
-                default: ""
-                description: "The string with which the tape shall be initialized."
-          run:
-            keyword: rpc
-            description: "Start the Turing Machine operation."
-          halted:
-            keyword: notification
-            children:
-              state:
-                keyword: leaf
-                type: state-index
-                mandatory: true
-                description: "The state of the control unit in which the machine has halted."
+      edit-config:
+        required: false
+        type: edit-config
+      initialize:
+        required: false
+        type: initialize
       metadata:
         default:
           xmlns:
@@ -133,12 +102,38 @@ node_types:
             t2: http://example.net/turing-machine/tape-2
           capabilities:
             - http://example.net/turing-machine?module=turing-machine&revision=2013-12-27
-          relax_ng: 'content of xml'
-          scematron: 'content of xml'
-          yang_files:
-            - filename.yang
-          features:
-            - features list
+      run:
+        default: {}
+        required: false
+
+
+#module: turing-machine
+#   +--rw turing-machine
+#      +--ro state                  state-index
+#      +--ro head-position          cell-index
+#      +--ro tape
+#      |  +--ro cell* [coord]
+#      |     +--ro coord     cell-index
+#      |     +--ro symbol?   tape-symbol
+#      +--rw transition-function
+#         +--rw delta* [label]
+#            +--rw label     string
+#            +--rw input
+#            |  +--rw state     state-index
+#            |  +--rw symbol    tape-symbol
+#            +--rw output
+#               +--rw state?       state-index
+#               +--rw symbol?      tape-symbol
+#               +--rw head-move?   head-dir
+#rpcs:
+#   +---x initialize
+#   |  +---w input
+#   |     +---w tape-content?   string
+#   +---x run
+#notifications:
+#   +---n halted
+#      +--ro state    state-index
+#
 
   turing-machine-update-config:
     derived_from: turing-machine
@@ -171,9 +166,10 @@ node_templates:
     type: turing-machine-update-config
     properties:
       netconf_auth:
-        user:  { get_input: netconf_user }
+        user: { get_input: netconf_user }
         password: { get_input: netconf_user }
-        ip:  { get_input: netconf_ip }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
       turing@initialize:
         turing@tape-content: 101010101
       edit-config:
