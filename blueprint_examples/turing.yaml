@@ -1,8 +1,7 @@
 tosca_definitions_version: cloudify_dsl_1_2
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
-  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+  - turing-yttc-generated.yaml
 
 inputs:
 
@@ -29,141 +28,11 @@ inputs:
        netconf server user rsa key content, can be used instead password
     default: ""
 
-data_types:
-  config:
-    properties:
-      turing-machine:
-        required: false
-        type: turing-machine
-  delta:
-    properties:
-      input:
-        required: false
-        type: input
-      label:
-        required: false
-        type: string
-      output:
-        required: false
-        type: output
-  edit-config:
-    properties:
-      config:
-        type: config
-      target:
-        default: running
-  initialize:
-    properties:
-      tape-content:
-        default: ''
-        required: false
-        type: string
-  input:
-    properties:
-      state:
-        required: true
-      symbol:
-        required: true
-  output:
-    properties:
-      head-move:
-        required: false
-      state:
-        required: false
-      symbol:
-        required: false
-  transition-function:
-    properties:
-      delta:
-        description: '[List_of: delta] '
-        required: false
-  turing-machine:
-    properties:
-      transition-function:
-        required: false
-        type: transition-function
-
-node_types:
-
-  turing-machine:
-    derived_from: cloudify.netconf.nodes.xml_rpc
-    properties:
-      edit-config:
-        required: false
-        type: edit-config
-      initialize:
-        required: false
-        type: initialize
-      metadata:
-        default:
-          xmlns:
-            _: urn:ietf:params:xml:ns:netconf:base:1.0
-            turing: http://example.net/turing-machine
-            t2: http://example.net/turing-machine/tape-2
-          capabilities:
-            - http://example.net/turing-machine?module=turing-machine&revision=2013-12-27
-      run:
-        default: {}
-        required: false
-
-
-#module: turing-machine
-#   +--rw turing-machine
-#      +--ro state                  state-index
-#      +--ro head-position          cell-index
-#      +--ro tape
-#      |  +--ro cell* [coord]
-#      |     +--ro coord     cell-index
-#      |     +--ro symbol?   tape-symbol
-#      +--rw transition-function
-#         +--rw delta* [label]
-#            +--rw label     string
-#            +--rw input
-#            |  +--rw state     state-index
-#            |  +--rw symbol    tape-symbol
-#            +--rw output
-#               +--rw state?       state-index
-#               +--rw symbol?      tape-symbol
-#               +--rw head-move?   head-dir
-#rpcs:
-#   +---x initialize
-#   |  +---w input
-#   |     +---w tape-content?   string
-#   +---x run
-#notifications:
-#   +---n halted
-#      +--ro state    state-index
-#
-
-  turing-machine-update-config:
-    derived_from: turing-machine
-    properties:
-      netconf_auth:
-        default: {}
-      edit-config:
-        default: {}
-      turing@initialize:
-        default: {}
-      get-config:
-        default:
-          source:
-            running: {}
-
-  turing-machine-run:
-    derived_from: turing-machine
-    properties:
-      netconf_auth:
-        default: {}
-      turing@run:
-        default: {}
-
-# -------------------------------------------------------
-
 node_templates:
 
 
   turing-machine-update-config-impl:
-    type: turing-machine-update-config
+    type: turing-machine
     properties:
       netconf_auth:
         user: { get_input: netconf_user }
@@ -274,7 +143,7 @@ node_templates:
                 payload: { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
 
   turing-machine-run-impl:
-    type: turing-machine-run
+    type: turing-machine
     properties:
       netconf_auth: { get_property: [ turing-machine-update-config-impl, netconf_auth ] }
     interfaces:
@@ -304,7 +173,7 @@ node_templates:
 
 outputs:
 
-  endpoint:
+  config:
     description: Last config
     value:
       config: { get_attribute: [ turing-machine-update-config-impl, saved-config ] }
