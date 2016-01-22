@@ -30,7 +30,6 @@ inputs:
 
 node_templates:
 
-
   turing-machine-update-config-impl:
     type: turing-machine
     properties:
@@ -41,11 +40,16 @@ node_templates:
         key_content: { get_input: netconf_key_content }
       turing@initialize:
         turing@tape-content: 101010101
-      edit-config:
-        error-option: rollback-on-error
-        target:
-          running: {}
-        config:
+
+      rfc6020@get-config:
+        rfc6020@source:
+          rfc6020@running: {}
+
+      rfc6020@edit-config:
+        rfc6020@error-option: rollback-on-error
+        rfc6020@target:
+          rfc6020@running: {}
+        rfc6020@config:
           turing@turing-machine:
             turing@transition-function:
               turing@delta:
@@ -72,7 +76,7 @@ node_templates:
           inputs:
             calls:
               - action: get-config
-                payload: { get_property: [ turing-machine-update-config-impl, get-config ] }
+                payload: { get_property: [ turing-machine-update-config-impl, rfc6020@get-config ] }
                 # save all results to saved-config
                 save_to: saved-config
         configure:
@@ -83,7 +87,7 @@ node_templates:
                   target:
                     running: {}
               - action: edit-config
-                payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
+                payload: { get_property: [ turing-machine-update-config-impl, rfc6020@edit-config ] }
                 validation:
                   xpath: /_:rpc/_:edit-config/_:config
                   rng: '<grammar xmlns:tm="http://example.net/turing-machine" xmlns="http://relaxng.org/ns/structure/1.0"

@@ -97,6 +97,18 @@ def _parse_response(xmlns, netconf_namespace, response):
     return reply
 
 
+def _merge_ns(base, override):
+    """we can have several namespaces in properties and in call"""
+    new_ns = {}
+    for ns in base:
+        new_ns[ns] = base[ns]
+
+    for ns in override:
+        new_ns[ns] = override[ns]
+
+    return new_ns
+
+
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
@@ -122,6 +134,9 @@ def run(**kwargs):
 
     # xml namespaces and capabilities
     xmlns = properties.get('metadata', {}).get('xmlns', {})
+    # override by system namespaces
+    xmlns = _merge_ns(xmlns, properties.get('base_xmlns', {}))
+
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
@@ -139,18 +154,14 @@ def run(**kwargs):
     )
     ctx.logger.info("i recieved: " + capabilities)
 
-    # we can have several calls in one session,
-    # like lock, edit-config, unlock
+    # recheck before real send
     for call in calls:
         operation = call.get('action')
         if not operation:
-            ctx.logger.info("No operations")
             continue
         data = call.get('payload', {})
 
-        # rpc
-        ctx.logger.info("rpc call")
-        message_id = message_id + 1
+        # gen xml for check
         parent = utils.rpc_gen(
             message_id, operation, netconf_namespace, data, xmlns
         )
@@ -167,6 +178,22 @@ def run(**kwargs):
             utils.xml_validate(
                 parent, xmlns, xpath, rng, sch
             )
+
+    # we can have several calls in one session,
+    # like lock, edit-config, unlock
+    for call in calls:
+        operation = call.get('action')
+        if not operation:
+            ctx.logger.info("No operations")
+            continue
+        data = call.get('payload', {})
+
+        # rpc
+        ctx.logger.info("rpc call")
+        message_id = message_id + 1
+        parent = utils.rpc_gen(
+            message_id, operation, netconf_namespace, data, xmlns
+        )
 
         # send rpc
         rpc_string = etree.tostring(

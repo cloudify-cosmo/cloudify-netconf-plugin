@@ -21,15 +21,6 @@ data_types:
       turing@output:
         required: false
         type: output
-  edit-config:
-    properties:
-      config:
-        type: config
-      target:
-        default:
-            running: {}
-      error-option:
-        default: {}
   initialize:
     properties:
       turing@tape-content:
@@ -66,9 +57,6 @@ node_types:
   turing-machine:
     derived_from: cloudify.netconf.nodes.xml_rpc
     properties:
-      edit-config:
-        required: false
-        type: edit-config
       turing@initialize:
         required: false
         type: initialize

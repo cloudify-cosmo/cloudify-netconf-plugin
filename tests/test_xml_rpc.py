@@ -174,6 +174,14 @@ class XmlRpcTest(unittest.TestCase):
                 "user": "me",
                 "password": "secret",
                 "ip": "super_secret"
+            },
+            'metadata': {
+                'xmlns': {
+                    'd': 'c'
+                }
+            },
+            "base_xmlns": {
+                "a": "b"
             }
         }
         with mock.patch(
