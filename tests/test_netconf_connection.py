@@ -149,7 +149,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
             ) as mock_policy:
                 with mock.patch.object(
                     paramiko.RSAKey, 'from_private_key', return_value="secret"
-                ) as mock_rsa_key:
+                ):
                     netconf = netconf_connection.connection()
                     message = netconf.connect(
                         "127.0.0.100", "me", hello_string="hi",

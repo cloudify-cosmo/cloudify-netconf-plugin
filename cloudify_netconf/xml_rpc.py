@@ -109,6 +109,68 @@ def _merge_ns(base, override):
     return new_ns
 
 
+def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns):
+    # rpc
+    ctx.logger.info("rpc call")
+    parent = utils.rpc_gen(
+        message_id, operation, netconf_namespace, data, xmlns
+    )
+
+    # send rpc
+    rpc_string = etree.tostring(
+        parent, pretty_print=True, xml_declaration=True,
+        encoding='UTF-8'
+    )
+    ctx.logger.info("i sent: " + rpc_string)
+    response = netconf.send(rpc_string)
+    ctx.logger.info("i recieved:" + response)
+
+    response_dict = _parse_response(
+        xmlns, netconf_namespace, response
+    )
+    ctx.logger.info("package will be :" + str(response_dict))
+    return response_dict
+
+
+def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
+    operation = "@lock" if lock else "@unlock"
+    data = {
+        netconf_namespace + "@target": {
+            name: {}
+        }
+    }
+    _run_one(
+        netconf, message_id, netconf_namespace + operation,
+        netconf_namespace, data, xmlns
+    )
+
+
+def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
+    data = {
+        netconf_namespace + "@source": {
+            front: {}
+        },
+        netconf_namespace + "@target": {
+            back: {}
+        }
+    }
+    _run_one(
+        netconf, message_id, netconf_namespace + "@copy-config",
+        netconf_namespace, data, xmlns
+    )
+
+
+def _update_data(data, operation, netconf_namespace, back):
+    """update operation with database name"""
+    if operation != 'edit-config':
+        return
+    if "target" in data:
+        return
+    if netconf_namespace + "@target" in data:
+        return
+    data[netconf_namespace + "@target"] = {back: None}
+
+
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
@@ -154,6 +216,18 @@ def run(**kwargs):
     )
     ctx.logger.info("i recieved: " + capabilities)
 
+    if 'lock' in kwargs:
+        message_id = message_id + 1
+        for name in kwargs['lock']:
+            _lock(name, True, netconf, message_id, netconf_namespace, xmlns)
+
+    if 'back_database' in kwargs and 'front_database' in kwargs:
+        message_id = message_id + 1
+        _copy(
+            kwargs['front_database'], kwargs['back_database'],
+            netconf, message_id, netconf_namespace, xmlns
+        )
+
     # recheck before real send
     for call in calls:
         operation = call.get('action')
@@ -188,32 +262,35 @@ def run(**kwargs):
             continue
         data = call.get('payload', {})
 
-        # rpc
-        ctx.logger.info("rpc call")
         message_id = message_id + 1
-        parent = utils.rpc_gen(
-            message_id, operation, netconf_namespace, data, xmlns
+
+        _update_data(
+            data, operation, netconf_namespace,
+            kwargs.get('back_database')
         )
 
-        # send rpc
-        rpc_string = etree.tostring(
-            parent, pretty_print=True, xml_declaration=True,
-            encoding='UTF-8'
+        response_dict = _run_one(
+            netconf, message_id, operation, netconf_namespace, data,
+            xmlns
         )
-        ctx.logger.info("i sent: " + rpc_string)
-        response = netconf.send(rpc_string)
-        ctx.logger.info("i recieved:" + response)
-
-        response_dict = _parse_response(
-            xmlns, netconf_namespace, response
-        )
-        ctx.logger.info("package will be :" + str(response_dict))
 
         # save results to runtime properties
         save_to = call.get('save_to')
         if save_to:
             ctx.instance.runtime_properties[save_to] = response_dict
             ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+
+    if 'back_database' in kwargs and 'front_database' in kwargs:
+        message_id = message_id + 1
+        _copy(
+            kwargs['back_database'], kwargs['front_database'],
+            netconf, message_id, netconf_namespace, xmlns
+        )
+
+    if 'lock' in kwargs:
+        message_id = message_id + 1
+        for name in kwargs['lock']:
+            _lock(name, False, netconf, message_id, netconf_namespace, xmlns)
 
     # goodbye
     ctx.logger.info("connection close")
