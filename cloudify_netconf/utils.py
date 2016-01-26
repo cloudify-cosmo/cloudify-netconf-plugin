@@ -11,10 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from lxml import etree
 from cloudify import exceptions as cfy_exc
+from lxml import etree
+from lxml import isoschematron
+
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
+RELAXNG_NAMESPACE = 'http://relaxng.org/ns/structure/1.0'
+
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
 
@@ -39,6 +43,10 @@ def _node_name(name, namespace, xmlns):
                 raise cfy_exc.NonRecoverableError(
                     "wrong format of xml element name"
                 )
+    # looks as empty namespace
+    if tag_namespace == "":
+        tag_namespace = namespace
+    # replace to real ns
     if tag_namespace in xmlns:
         # we can use such namespace
         return attibute, tag_namespace, "{%s}%s" % (xmlns[tag_namespace], name)
@@ -51,7 +59,8 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
     attribute, tag_namespace, tag_name = _node_name(
         node_name, namespace, xmlns
     )
-    # attibute can't content complicated values, ignore attibute flag for now
+    # attibute can't contain complicated values, ignore attribute flag
+    # for now
     if not attribute or isinstance(value, dict):
         # can be separate node
         result = etree.Element(
@@ -121,16 +130,44 @@ def generate_xml_node(model, xmlns, parent_tag):
     return parent
 
 
-def _get_free_ns(xmlns, namespace):
+def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
+    if "@" in operation:
+        action_name = operation
+    else:
+        action_name = netconf_namespace + "@" + operation
+    new_node = {
+        action_name: data,
+        "_@@message-id": message_id
+    }
+    return generate_xml_node(
+        new_node,
+        xmlns,
+        'rpc'
+    )
+
+
+def _get_free_ns(xmlns, namespace, prefered_ns=None):
     """search some not existed namespace name, ands save namespace"""
-    namespace_name = "_" + namespace.replace(":", "_")
+    # search maybe we have some cool name for it
+    namespace_name = None
+    if prefered_ns:
+        for ns in prefered_ns:
+            if ns is not None and prefered_ns[ns] == namespace:
+                # we have some short and cool name
+                namespace_name = ns
+                break
+    # we dont have cool names, create ugly
+    if not namespace_name:
+        namespace_name = "_" + namespace.replace(":", "_")
+        namespace_name = namespace_name.replace("/", "_")
+    # save uniq for namespace name
     while namespace_name in xmlns:
         namespace_name = "_" + namespace_name + "_"
     xmlns[namespace_name] = namespace
-    return namespace
+    return namespace_name
 
 
-def _short_names(name, xmlns):
+def _short_names(name, xmlns, nsmap=None):
     if name[0] != "{":
         return name
     for ns_short in xmlns:
@@ -140,26 +177,26 @@ def _short_names(name, xmlns):
                 return name.replace(fullnamespace, "")
             else:
                 return name.replace(fullnamespace, ns_short + "@")
-    # we dont have such namespace
+    # we dont have such namespace,
+    # in any case we will have } in string if we have used lxml
     namespace = name[1:]
-    if namespace.find("}"):
-        name = namespace[namespace.find("}") + 1:]
-        namespace = namespace[:namespace.find("}")]
-        return _get_free_ns(xmlns, namespace) + "@" + name
-    return name
+    name = namespace[namespace.find("}") + 1:]
+    namespace = namespace[:namespace.find("}")]
+    return _get_free_ns(xmlns, namespace, nsmap) + "@" + name
 
 
 def _node_to_dict(parent, xml_node, xmlns):
-    name = _short_names(xml_node.tag, xmlns)
-    if not xml_node.getchildren():
-        # we dont support text inside of node if we have subnodes
+    name = _short_names(xml_node.tag, xmlns, xml_node.nsmap)
+    if not xml_node.getchildren() and not xml_node.attrib:
+        # we dont support text inside of node
+        # if we have subnodes or attibutes
         value = xml_node.text
     else:
         value = {}
         for i in xml_node.getchildren():
             _node_to_dict(value, i, xmlns)
         for k in xml_node.attrib:
-            k_short = _short_names(k, xmlns)
+            k_short = _short_names(k, xmlns, xml_node.nsmap)
             if '@' in k_short:
                 # already have namespace
                 k_short = "_@" + k_short
@@ -180,3 +217,86 @@ def _node_to_dict(parent, xml_node, xmlns):
 def generate_dict_node(parent, xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
+
+
+def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
+    """Validate xml by rng and sch"""
+    if xpath:
+
+        # rng rules
+        relaxng = None
+        if rng:
+            rng_node = etree.XML(rng)
+            relaxng = etree.RelaxNG(rng_node)
+
+        # schematron rules
+        schematron = None
+        if sch:
+            sch_node = etree.XML(sch)
+            schematron = isoschematron.Schematron(sch_node)
+
+        # run validation
+        for node in parent.xpath(xpath, namespaces=xmlns):
+            if relaxng:
+                if not relaxng.validate(node):
+                    raise cfy_exc.NonRecoverableError(
+                        "Not valid xml by rng"
+                    )
+            if schematron:
+                if not schematron.validate(node):
+                    raise cfy_exc.NonRecoverableError(
+                        "Not valid xml by Schematron"
+                    )
+
+
+# relaxng specific parts
+def load_xml(path):
+    """load xml file, without any checks for errors"""
+    rng_rpc = open(path, 'rb')
+    with rng_rpc:
+        return etree.XML(rng_rpc.read())
+
+
+def default_xmlns():
+    """default namespace list for relaxng"""
+    return {
+        '_': NETCONF_NAMESPACE,
+        'relaxng': RELAXNG_NAMESPACE
+    }
+
+
+def _make_node_copy(xml_orig, nsmap):
+    """copy nodes with namespaces from parent"""
+    clone_nsmap = {}
+    for ns in nsmap:
+        clone_nsmap[ns] = nsmap[ns]
+    for ns in xml_orig.nsmap:
+        clone_nsmap[ns] = xml_orig.nsmap[ns]
+    clone = etree.Element(
+        xml_orig.tag, nsmap=clone_nsmap
+    )
+    for tag in xml_orig.attrib:
+        clone.attrib[tag] = xml_orig.attrib[tag]
+    for node in xml_orig.getchildren():
+        clone.append(_make_node_copy(node, clone_nsmap))
+    clone.text = xml_orig.text
+    return clone
+
+
+def load_relaxng_includes(xml_node, xmlns):
+    """will replace all includes by real content"""
+    nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
+    grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
+    while len(nodes):
+        for node in nodes:
+            parent = node.getparent()
+            if parent is not None:
+                parent.remove(node)
+                if 'href' in node.attrib:
+                    subnodes = load_xml(node.attrib['href'])
+                    if subnodes.tag == grammar_name:
+                        for subnode in subnodes.getchildren():
+                            parent.append(
+                                _make_node_copy(subnode, subnodes.nsmap)
+                            )
+        nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)

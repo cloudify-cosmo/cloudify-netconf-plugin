@@ -1,8 +1,7 @@
 tosca_definitions_version: cloudify_dsl_1_2
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
-  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+  - turing-yttc-generated.yaml
 
 inputs:
 
@@ -23,164 +22,34 @@ inputs:
        netconf server user password
     default: netconf
 
-node_types:
-
-  turing-machine:
-    derived_from: cloudify.netconf.nodes.xml_rpc
-    properties:
-      schema:
-        default:
-          turing-machine:
-            description: "State data and configuration of a Turing Machine."
-            keyword: container
-            children:
-              state:
-                keyword: leaf
-                type: state-index
-                config: false
-                mandatory: true
-                description: "Current state of the control unit. The initial state is 0."
-              head-position:
-                keyword: leaf
-                type: cell-index
-                config: false
-                mandatory: true
-                description: "Position of tape read/write head."
-              tape:
-                keyword: container
-                config: false
-                description: "The contents of the tape."
-                children:
-                  cell:
-                    keyword: list
-                    key: coord
-                    description: "List of non-blank cells."
-                    children:
-                      coord:
-                        type: cell-index
-                        keyword: leaf
-                        description: "Coordinate (index) of the tape cell."
-                      symbol:
-                        keyword: leaf
-                        type: tape-symbol
-                        description: "Symbol appearing in the tape cell."
-              transition-function:
-                description: "The Turing Machine is configured by specifying the transition function."
-                keyword: container
-                children:
-                  delta:
-                    keyword: list
-                    key: label
-                    description: The list of transition rules.
-                    children:
-                        label:
-                          keyword: leaf
-                          type: string
-                          description: "An arbitrary label of the transition rule."
-                        input:
-                          keyword: container
-                          description: "Input parameters (arguments) of the transition rule."
-                          children:
-                            state:
-                              type: state-index
-                              keyword: leaf
-                              description: "Current state of the control unit."
-                            symbol:
-                              type: tape-symbol
-                              keyword: leaf
-                              description: "Symbol read from the tape cell."
-                        output:
-                          keyword: container
-                          description: "Output values of the transition rule."
-                          children:
-                            state:
-                              type: state-index
-                              keyword: leaf
-                              description: "New state of the control unit. If this leaf is not present, the state doesn't change."
-                            symbol:
-                              type: tape-symbol
-                              keyword: leaf
-                              description: "Symbol to be written to the tape cell. If this leaf is not present, the symbol doesn't change."
-                            head-move:
-                              type: head-dir
-                              keyword: leaf
-                              description: "Move the head one cell to the left or right"
-          initialize:
-            keyword: rpc
-            description: "Initialize the Turing Machine"
-            input:
-              tape-content:
-                keyword: leaf
-                type: string
-                default: ""
-                description: "The string with which the tape shall be initialized."
-          run:
-            keyword: rpc
-            description: "Start the Turing Machine operation."
-          halted:
-            keyword: notification
-            children:
-              state:
-                keyword: leaf
-                type: state-index
-                mandatory: true
-                description: "The state of the control unit in which the machine has halted."
-      metadata:
-        default:
-          xmlns:
-            _: urn:ietf:params:xml:ns:netconf:base:1.0
-            turing: http://example.net/turing-machine
-            t2: http://example.net/turing-machine/tape-2
-          capabilities:
-            - http://example.net/turing-machine?module=turing-machine&revision=2013-12-27
-          relax_ng: 'content of xml'
-          scematron: 'content of xml'
-          yang_files:
-            - filename.yang
-          features:
-            - features list
-
-  turing-machine-update-config:
-    derived_from: turing-machine
-    properties:
-      netconf_auth:
-        default: {}
-      edit-config:
-        default: {}
-      turing@initialize:
-        default: {}
-      get-config:
-        default:
-          source:
-            running: {}
-
-  turing-machine-run:
-    derived_from: turing-machine
-    properties:
-      netconf_auth:
-        default: {}
-      turing@run:
-        default: {}
-
-# -------------------------------------------------------
+  netconf_key_content:
+    type: string
+    description: >
+       netconf server user rsa key content, can be used instead password
+    default: ""
 
 node_templates:
 
-
   turing-machine-update-config-impl:
-    type: turing-machine-update-config
+    type: turing-machine
     properties:
       netconf_auth:
-        user:  { get_input: netconf_user }
+        user: { get_input: netconf_user }
         password: { get_input: netconf_user }
-        ip:  { get_input: netconf_ip }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
       turing@initialize:
         turing@tape-content: 101010101
-      edit-config:
-        error-option: rollback-on-error
-        target:
-          running: {}
-        config:
+
+      rfc6020@get-config:
+        rfc6020@source:
+          rfc6020@running: {}
+
+      rfc6020@edit-config:
+        rfc6020@error-option: rollback-on-error
+        rfc6020@target:
+          rfc6020@running: {}
+        rfc6020@config:
           turing@turing-machine:
             turing@transition-function:
               turing@delta:
@@ -207,7 +76,7 @@ node_templates:
           inputs:
             calls:
               - action: get-config
-                payload: { get_property: [ turing-machine-update-config-impl, get-config ] }
+                payload: { get_property: [ turing-machine-update-config-impl, rfc6020@get-config ] }
                 # save all results to saved-config
                 save_to: saved-config
         configure:
@@ -218,7 +87,54 @@ node_templates:
                   target:
                     running: {}
               - action: edit-config
-                payload: { get_property: [ turing-machine-update-config-impl, edit-config ] }
+                payload: { get_property: [ turing-machine-update-config-impl, rfc6020@edit-config ] }
+                validation:
+                  xpath: /_:rpc/_:edit-config/_:config
+                  rng: '<grammar xmlns:tm="http://example.net/turing-machine" xmlns="http://relaxng.org/ns/structure/1.0"
+                    xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
+                    xmlns:en="urn:ietf:params:xml:ns:netconf:notification:1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+                    ns="urn:ietf:params:xml:ns:netconf:base:1.0"><define name="__anyxml__"><zeroOrMore><choice><element><anyName/><ref
+                    name="__anything__"/></element><text/></choice></zeroOrMore></define><define name="__anything__"><zeroOrMore><choice><attribute><anyName/></attribute><element><anyName/><ref
+                    name="__anything__"/></element><text/></choice></zeroOrMore></define><define name="__instance-identifier__"><data
+                    type="string"><param name="pattern">(/[a-zA-Z_][a-zA-Z0-9_\-.]*:[a-zA-Z_][a-zA-Z0-9_\-.]*(\[\s*(([a-zA-Z_][a-zA-Z0-9_\-.]*:[a-zA-Z_][a-zA-Z0-9_\-.]*|\.)\s*=\s*("[^"]*"|''[^'']*'')|[0-9]+)\s*\])*)+</param></data></define><define
+                    name="message-id-attribute"><attribute name="message-id"><data type="string"><param
+                    name="maxLength">4095</param></data></attribute></define><define name="ok-element"><element
+                    name="nc:ok"><empty/></element></define><define name="edit-config-parameters"><element
+                    name="target"><choice><element name="running"><empty/></element><element name="candidate"><empty/></element></choice></element><optional><element
+                    name="default-operation"><choice><value>merge</value><value>replace</value><value>none</value></choice></element></optional><optional><element
+                    name="test-option"><choice><value>test-then-set</value><value>set</value><value>test-only</value></choice></element></optional><optional><element
+                    name="error-option"><choice><value>stop-on-error</value><value>continue-on-error</value><value>rollback-on-error</value></choice></element></optional></define><define
+                    name="eventTime-element"><element name="en:eventTime"><data type="dateTime"/></element></define><start><element
+                    name="config"><interleave><grammar ns="http://example.net/turing-machine"><define
+                    name="turing-machine__state-index"><data type="unsignedShort"/></define><define
+                    name="turing-machine__head-dir"><choice><value>left</value><value>right</value></choice></define><define
+                    name="turing-machine__cell-index"><data type="long"/></define><define name="turing-machine__tape-symbol"><data
+                    type="string"><param name="minLength">0</param><param name="maxLength">1</param></data></define><define
+                    name="turing-machine___tape-cells"><zeroOrMore><element name="cell"><element name="coord"><ref
+                    name="turing-machine__cell-index"/></element><optional><element name="symbol"><data
+                    type="string"><param name="length">1</param></data></element></optional></element></zeroOrMore></define><start><element
+                    name="tm:turing-machine"><interleave><empty/><empty/><optional><empty/></optional><optional><element
+                    name="tm:transition-function"><zeroOrMore><element name="tm:delta"><element name="tm:label"><data
+                    type="string"/></element><interleave><element name="tm:input"><interleave><element
+                    name="tm:state"><ref name="turing-machine__state-index"/></element><element name="tm:symbol"><ref
+                    name="turing-machine__tape-symbol"/></element></interleave></element><optional><element
+                    name="tm:output"><interleave><optional><element name="tm:state"><ref name="turing-machine__state-index"/></element></optional><optional><element
+                    name="tm:symbol"><ref name="turing-machine__tape-symbol"/></element></optional><optional><element
+                    name="tm:head-move"><ref name="turing-machine__head-dir"/></element></optional></interleave></element></optional></interleave></element></zeroOrMore></element></optional></interleave></element></start></grammar></interleave></element></start></grammar>'
+
+                  sch: '<sch:schema xmlns:sch="http://purl.oclc.org/dsdl/schematron" queryBinding="exslt"><sch:ns
+                    uri="http://exslt.org/dynamic" prefix="dyn"/><sch:ns uri="http://example.net/turing-machine"
+                    prefix="tm"/><sch:ns uri="urn:ietf:params:xml:ns:netconf:base:1.0" prefix="nc"/><sch:let
+                    name="root" value="/nc:config"/><sch:pattern abstract="true" id="turing-machine___tape-cells"><sch:rule
+                    context="$start/$pref:cell"><sch:report test="preceding-sibling::$pref:cell[$pref:coord=current()/$pref:coord]">Duplicate
+                    key "coord"</sch:report></sch:rule></sch:pattern><sch:pattern id="turing-machine"><sch:rule
+                    context="/nc:config/tm:turing-machine/tm:transition-function/tm:delta"><sch:report
+                    test="preceding-sibling::tm:delta[tm:label=current()/tm:label]">Duplicate key "tm:label"</sch:report><sch:report
+                    test="preceding-sibling::tm:delta[tm:input/tm:state=current()/tm:input/tm:state
+                    and tm:input/tm:symbol=current()/tm:input/tm:symbol]">Violated uniqueness for "tm:input/tm:state
+                    tm:input/tm:symbol"</sch:report></sch:rule></sch:pattern><sch:pattern id="idp8148160"
+                    is-a="turing-machine___tape-cells"><sch:param name="start" value="/nc:config/tm:turing-machine/tm:tape"/><sch:param
+                    name="pref" value="tm"/></sch:pattern></sch:schema>'
               - action: unlock
                 payload:
                   target:
@@ -231,7 +147,7 @@ node_templates:
                 payload: { get_property: [ turing-machine-update-config-impl, turing@initialize ] }
 
   turing-machine-run-impl:
-    type: turing-machine-run
+    type: turing-machine
     properties:
       netconf_auth: { get_property: [ turing-machine-update-config-impl, netconf_auth ] }
     interfaces:
@@ -261,7 +177,7 @@ node_templates:
 
 outputs:
 
-  endpoint:
+  config:
     description: Last config
     value:
       config: { get_attribute: [ turing-machine-update-config-impl, saved-config ] }

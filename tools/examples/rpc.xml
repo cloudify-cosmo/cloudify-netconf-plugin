@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rpc xmlns:turing="http://example.net/turing-machine" xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="some_id">
+  <get>
+    <filter type="subtree">
+      <turing:turing-machine>
+        <turing:transition-function/>
+      </turing:turing-machine>
+    </filter>
+    <source>
+      <running/>
+    </source>
+  </get>
+</rpc>

@@ -1,0 +1,79 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - vyatta.base.yaml
+
+inputs:
+
+  netconf_ip:
+    type: string
+    description: >
+       netconf server ip
+    default: 127.0.0.1
+
+  netconf_user:
+    type: string
+    description: >
+       netconf server user
+    default: netconf
+  netconf_password:
+    type: string
+    description: >
+       netconf server user password
+    default: netconf
+
+  netconf_key_content:
+    type: string
+    description: >
+       netconf server user rsa key content, can be used instead password
+    default: ""
+
+node_templates:
+
+  vyatta-impl:
+    type: vyatta-interfaces-v1
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+      config:
+        interfaces:
+          vyatta-interfaces-dataplane-v1@dataplane:
+            _@rfc6020@operation: replace
+            vyatta-interfaces-dataplane-v1@address: 172.16.10.5/16
+            vyatta-interfaces-dataplane-v1@tagnode: dp0s3
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            lock:
+              - rfc6020@candidate
+            back_database: rfc6020@candidate
+            front_database: rfc6020@running
+            calls:
+              - action: get-config
+                payload:
+                  rfc6020@source:
+                    rfc6020@running: {}
+                  rfc6020@filter:
+                    _@rfc6020@type: subtree
+                    interfaces: {}
+                save_to: origin_interfaces
+
+              - action: edit-config
+                payload:
+                    rfc6020@config: { get_property: [ vyatta-impl, config ] }
+                    # you can skip this part if you have 'back_database'
+                    #rfc6020@target:
+                    #  candidate: null
+
+
+outputs:
+  config:
+    description: Last config
+    value: { get_attribute: [ vyatta-impl, origin_interfaces ] }

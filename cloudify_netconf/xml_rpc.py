@@ -15,9 +15,10 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from lxml import etree
-import utils
 import netconf_connection
 import time
+import utils
+
 
 DEFAULT_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
 
@@ -80,16 +81,97 @@ def _parse_response(xmlns, netconf_namespace, response):
         )
     # error check
     error = None
+    # we can have empty error, so we need additional flag for that
+    have_error = False
     if 'rpc-error' in reply:
         error = reply['rpc-error']
+        have_error = True
     elif (netconf_namespace + '@rpc-error') in reply:
         # default namespace can't be not netconf 1.0
         error = reply[netconf_namespace + '@rpc-error']
-    if error:
+        have_error = True
+    if have_error:
         raise cfy_exc.NonRecoverableError(
             "We have error in reply" + str(error)
         )
     return reply
+
+
+def _merge_ns(base, override):
+    """we can have several namespaces in properties and in call"""
+    new_ns = {}
+    for ns in base:
+        new_ns[ns] = base[ns]
+
+    for ns in override:
+        new_ns[ns] = override[ns]
+
+    return new_ns
+
+
+def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns):
+    # rpc
+    ctx.logger.info("rpc call")
+    parent = utils.rpc_gen(
+        message_id, operation, netconf_namespace, data, xmlns
+    )
+
+    # send rpc
+    rpc_string = etree.tostring(
+        parent, pretty_print=True, xml_declaration=True,
+        encoding='UTF-8'
+    )
+    ctx.logger.info("i sent: " + rpc_string)
+    response = netconf.send(rpc_string)
+    ctx.logger.info("i recieved:" + response)
+
+    response_dict = _parse_response(
+        xmlns, netconf_namespace, response
+    )
+    ctx.logger.info("package will be :" + str(response_dict))
+    return response_dict
+
+
+def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
+    operation = "@lock" if lock else "@unlock"
+    data = {
+        netconf_namespace + "@target": {
+            name: {}
+        }
+    }
+    _run_one(
+        netconf, message_id, netconf_namespace + operation,
+        netconf_namespace, data, xmlns
+    )
+
+
+def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
+    data = {
+        netconf_namespace + "@source": {
+            front: {}
+        },
+        netconf_namespace + "@target": {
+            back: {}
+        }
+    }
+    _run_one(
+        netconf, message_id, netconf_namespace + "@copy-config",
+        netconf_namespace, data, xmlns
+    )
+
+
+def _update_data(data, operation, netconf_namespace, back):
+    """update operation with database name"""
+    if operation != 'edit-config':
+        return
+    if "target" in data:
+        if not data["target"]:
+            data["target"] = {back: None}
+        return
+    if netconf_namespace + "@target" in data:
+        if data[netconf_namespace + "@target"]:
+            return
+    data[netconf_namespace + "@target"] = {back: None}
 
 
 @operation
@@ -101,30 +183,78 @@ def run(**kwargs):
         ctx.logger.info("No calls")
         return
 
+    # credentials
+    properties = ctx.node.properties
+    ip = properties.get('netconf_auth', {}).get('ip')
+    user = properties.get('netconf_auth', {}).get('user')
+    password = properties.get('netconf_auth', {}).get('password')
+    key_content = properties.get('netconf_auth', {}).get('key_content')
+    if not ip or not user or (not password and not key_content):
+        raise cfy_exc.NonRecoverableError(
+            "please check your credentials"
+        )
+
     # some random initial message id, for have different between calls
     message_id = int((time.time() * 100) % 100 * 1000)
 
-    properties = ctx.node.properties
-    xmlns = properties.get('metadata', {}).get('xmlns')
+    # xml namespaces and capabilities
+    xmlns = properties.get('metadata', {}).get('xmlns', {})
+    # override by system namespaces
+    xmlns = _merge_ns(xmlns, properties.get('base_xmlns', {}))
+
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
     capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
-    ctx.logger.info(properties.get('netconf_auth'))
+    ctx.logger.info("use %s@%s for login" % (user, ip))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
     capabilities = netconf.connect(
-        properties.get('netconf_auth', {}).get('ip'),
-        properties.get('netconf_auth', {}).get('user'),
-        properties.get('netconf_auth', {}).get('password'),
-        hello_string
+        ip, user, hello_string, password, key_content
     )
     ctx.logger.info("i recieved: " + capabilities)
+
+    if 'lock' in kwargs:
+        message_id = message_id + 1
+        for name in kwargs['lock']:
+            _lock(name, True, netconf, message_id, netconf_namespace, xmlns)
+
+    if 'back_database' in kwargs and 'front_database' in kwargs:
+        message_id = message_id + 1
+        _copy(
+            kwargs['front_database'], kwargs['back_database'],
+            netconf, message_id, netconf_namespace, xmlns
+        )
+
+    # recheck before real send
+    for call in calls:
+        operation = call.get('action')
+        if not operation:
+            continue
+        data = call.get('payload', {})
+
+        # gen xml for check
+        parent = utils.rpc_gen(
+            message_id, operation, netconf_namespace, data, xmlns
+        )
+
+        # validate rpc
+        validation = call.get('validation', {})
+        xpath = validation.get('xpath')
+        if xpath:
+            ctx.logger.info(
+                "We have some validation rules for " + str(xpath)
+            )
+            rng = validation.get('rng')
+            sch = validation.get('sch')
+            utils.xml_validate(
+                parent, xmlns, xpath, rng, sch
+            )
 
     # we can have several calls in one session,
     # like lock, edit-config, unlock
@@ -132,43 +262,38 @@ def run(**kwargs):
         operation = call.get('action')
         if not operation:
             ctx.logger.info("No operations")
-            return
+            continue
         data = call.get('payload', {})
 
-        # rpc
-        ctx.logger.info("rpc call")
         message_id = message_id + 1
-        if "@" in operation:
-            action_name = operation
-        else:
-            action_name = netconf_namespace + "@" + operation
-        new_node = {
-            action_name: data,
-            "_@@message-id": message_id
-        }
-        parent = utils.generate_xml_node(
-            new_node,
-            xmlns,
-            'rpc'
-        )
-        rpc_string = etree.tostring(
-            parent, pretty_print=True, xml_declaration=True,
-            encoding='UTF-8'
-        )
-        ctx.logger.info("i sent: " + rpc_string)
-        response = netconf.send(rpc_string)
-        ctx.logger.info("i recieved:" + response)
 
-        response_dict = _parse_response(
-            xmlns, netconf_namespace, response
+        _update_data(
+            data, operation, netconf_namespace,
+            kwargs.get('back_database')
         )
-        ctx.logger.info("package will be :" + str(response_dict))
+
+        response_dict = _run_one(
+            netconf, message_id, operation, netconf_namespace, data,
+            xmlns
+        )
 
         # save results to runtime properties
         save_to = call.get('save_to')
         if save_to:
             ctx.instance.runtime_properties[save_to] = response_dict
             ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+
+    if 'back_database' in kwargs and 'front_database' in kwargs:
+        message_id = message_id + 1
+        _copy(
+            kwargs['back_database'], kwargs['front_database'],
+            netconf, message_id, netconf_namespace, xmlns
+        )
+
+    if 'lock' in kwargs:
+        message_id = message_id + 1
+        for name in kwargs['lock']:
+            _lock(name, False, netconf, message_id, netconf_namespace, xmlns)
 
     # goodbye
     ctx.logger.info("connection close")

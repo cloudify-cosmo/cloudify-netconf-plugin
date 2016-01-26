@@ -1,0 +1,13 @@
+ns:
+  _: urn:ietf:params:xml:ns:netconf:base:1.0
+  turing: http://example.net/turing-machine
+
+action: get
+
+payload:
+  source:
+    running: {}
+  filter:
+    _@@type: subtree
+    turing@turing-machine:
+      turing@transition-function: {}

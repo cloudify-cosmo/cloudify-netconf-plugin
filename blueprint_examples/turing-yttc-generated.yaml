@@ -1,0 +1,101 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+
+data_types:
+  config:
+    properties:
+      turing@turing-machine:
+        required: false
+        type: turing-machine
+  delta:
+    properties:
+      turing@input:
+        required: false
+        type: input
+      turing@label:
+        required: false
+        type: string
+      turing@output:
+        required: false
+        type: output
+  initialize:
+    properties:
+      turing@tape-content:
+        default: ''
+        required: false
+        type: string
+  input:
+    properties:
+      state:
+        required: true
+      symbol:
+        required: true
+  output:
+    properties:
+      head-move:
+        required: false
+      state:
+        required: false
+      symbol:
+        required: false
+  transition-function:
+    properties:
+      turing@delta:
+        description: '[List_of: delta] '
+        required: false
+  turing-machine:
+    properties:
+      turing@transition-function:
+        required: false
+        type: transition-function
+
+node_types:
+
+  turing-machine:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      turing@initialize:
+        required: false
+        type: initialize
+      metadata:
+        default:
+          xmlns:
+            _: urn:ietf:params:xml:ns:netconf:base:1.0
+            turing: http://example.net/turing-machine
+          capabilities:
+            - http://example.net/turing-machine?module=turing-machine&revision=2013-12-27
+      turing@run:
+        default: {}
+        required: false
+
+
+#module: turing-machine
+#   +--rw turing-machine
+#      +--ro state                  state-index
+#      +--ro head-position          cell-index
+#      +--ro tape
+#      |  +--ro cell* [coord]
+#      |     +--ro coord     cell-index
+#      |     +--ro symbol?   tape-symbol
+#      +--rw transition-function
+#         +--rw delta* [label]
+#            +--rw label     string
+#            +--rw input
+#            |  +--rw state     state-index
+#            |  +--rw symbol    tape-symbol
+#            +--rw output
+#               +--rw state?       state-index
+#               +--rw symbol?      tape-symbol
+#               +--rw head-move?   head-dir
+#rpcs:
+#   +---x initialize
+#   |  +---w input
+#   |     +---w tape-content?   string
+#   +---x run
+#notifications:
+#   +---n halted
+#      +--ro state    state-index
+#

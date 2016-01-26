@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:turing="http://example.net/turing-machine" xmlns:t2="http://example.net/turing-machine/tape-2">
+      <turing:turing-machine>
+        <turing:transition-function>
+          <turing:delta>
+            <turing:label>1</turing:label>
+            <turing:input>
+              <turing:symbol>0</turing:symbol>
+              <turing:state>0</turing:state>
+            </turing:input>
+            <turing:output>
+              <turing:symbol/>
+              <turing:state>1</turing:state>
+              <turing:head-move>right</turing:head-move>
+            </turing:output>
+          </turing:delta>
+          <turing:delta>
+            <turing:label>2</turing:label>
+            <turing:output>
+              <turing:symbol>0</turing:symbol>
+              <turing:state>1</turing:state>
+              <turing:head-move>right</turing:head-move>
+            </turing:output>
+            <turing:input>
+              <turing:symbol>0</turing:symbol>
+              <turing:state>1</turing:state>
+            </turing:input>
+          </turing:delta>
+        </turing:transition-function>
+      </turing:turing-machine>
+    </config>

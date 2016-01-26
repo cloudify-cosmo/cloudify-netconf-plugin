@@ -1,0 +1,106 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+
+inputs:
+
+  netconf_ip:
+    type: string
+    description: >
+       netconf server ip
+    default: 127.0.0.1
+
+  netconf_user:
+    type: string
+    description: >
+       netconf server user
+    default: netconf
+  netconf_password:
+    type: string
+    description: >
+       netconf server user password
+    default: netconf
+
+  netconf_key_content:
+    type: string
+    description: >
+       netconf server user rsa key content, can be used instead password
+    default: ""
+
+node_types:
+
+  vyatta-machine:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      metadata:
+        default:
+          xmlns:
+            vyatta_dataplane: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta_interfaces: "urn:vyatta.com:mgmt:vyatta-interfaces:1"
+
+node_templates:
+
+  vyatta-impl:
+    type: vyatta-machine
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+      # example for validation from plugin.yaml
+      rfc6020@lock:
+        rfc6020@target:
+          rfc6020@candidate: {}
+
+      rfc6020@unlock:
+        rfc6020@target:
+          rfc6020@candidate: {}
+
+      rfc6020@copy-config:
+        rfc6020@source:
+          rfc6020@running: {}
+        rfc6020@target:
+          rfc6020@candidate: {}
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            calls:
+              - action: get-config
+                payload:
+                  source:
+                    running: {}
+                  filter:
+                    _@@type: subtree
+                    vyatta_interfaces@interfaces: {}
+              - action: lock
+                payload: { get_property: [ vyatta-impl, rfc6020@lock ] }
+
+              - action: copy-config
+                payload: { get_property: [ vyatta-impl, rfc6020@copy-config ] }
+
+              - action: edit-config
+                payload:
+                  config:
+                    vyatta_interfaces@interfaces:
+                      vyatta_dataplane@dataplane:
+                        _@rfc6020@operation: replace
+                        vyatta_dataplane@address: 172.43.0.1/24
+                        vyatta_dataplane@tagnode: dp0o33557248
+                  target:
+                    candidate: null
+
+              - action: copy-config
+                payload:
+                  source:
+                    candidate: {}
+                  target:
+                    running: {}
+
+              - action: unlock
+                payload: { get_property: [ vyatta-impl, rfc6020@unlock ] }

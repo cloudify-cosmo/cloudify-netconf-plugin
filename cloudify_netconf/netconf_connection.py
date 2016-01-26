@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import paramiko
+from StringIO import StringIO
 
 
 class connection(object):
@@ -26,13 +27,23 @@ class connection(object):
     # buffer for same packages, will save partial packages between calls
     buff = ""
 
-    def connect(self, ip, user, password, hello_string):
+    def connect(
+        self, ip, user, hello_string, password=None, key_content=None
+    ):
         """open connection and send xml string by link"""
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(
-            ip, username=user, password=password, port=830
-        )
+        if key_content:
+            key = paramiko.RSAKey.from_private_key(
+                StringIO(key_content)
+            )
+            self.ssh.connect(
+                ip, username=user, pkey=key, port=830
+            )
+        else:
+            self.ssh.connect(
+                ip, username=user, password=password, port=830
+            )
         self.chan = self.ssh.get_transport().open_session()
         self.chan.invoke_subsystem('netconf')
         self.buff = ""

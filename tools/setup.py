@@ -14,14 +14,16 @@
 from distutils.core import setup
 
 setup(
-    name='cloudify-netconf-plugin',
+    name='cloudify-netconf-tools',
     version='0.1',
-    description='support netconf',
+    description='tools for netconf',
     author='Denis Pauk',
     author_email='pauk.denis@gmail.com',
     license='LICENSE',
-    packages=['cloudify_netconf'],
+    scripts=['scripts/yaml2netconfxml.py', 'scripts/netconfxml2yaml.py'],
     install_requires=[
-        'cloudify-plugins-common>=3.3',
+        'cloudify-netconf-plugin',
+        'lxml',
+        'pyaml',
     ]
 )
