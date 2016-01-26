@@ -165,9 +165,12 @@ def _update_data(data, operation, netconf_namespace, back):
     if operation != 'edit-config':
         return
     if "target" in data:
+        if not data["target"]:
+            data["target"] = {back: None}
         return
     if netconf_namespace + "@target" in data:
-        return
+        if data[netconf_namespace + "@target"]:
+            return
     data[netconf_namespace + "@target"] = {back: None}
 
 

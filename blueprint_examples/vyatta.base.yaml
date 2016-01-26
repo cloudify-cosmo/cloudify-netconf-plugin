@@ -1,0 +1,143 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+
+data_types:
+  config:
+    properties:
+      interfaces:
+        required: false
+        type: interfaces_type
+  interfaces_type:
+    properties:
+      vyatta-interfaces-dataplane-v1@dataplane:
+        description: '[List_of: vyatta-interfaces-dataplane-v1@dataplane]'
+        required: false
+  vyatta-interfaces-dataplane-v1@dataplane_type:
+    properties:
+      vyatta-interfaces-dataplane-v1@address:
+        description: '[List_of: if:address-dhcp]'
+        required: false
+      vyatta-interfaces-dataplane-v1@cpu-affinity:
+        required: false
+      vyatta-interfaces-dataplane-v1@description:
+        required: false
+        type: string
+      vyatta-interfaces-dataplane-v1@disable:
+        required: false
+      vyatta-interfaces-dataplane-v1@disable-link-detect:
+        required: false
+      vyatta-interfaces-dataplane-v1@ip:
+        required: false
+        type: vyatta-interfaces-dataplane-v1@ip_type
+      vyatta-interfaces-dataplane-v1@ipv6:
+        required: false
+      vyatta-interfaces-dataplane-v1@log_martians:
+        required: false
+      vyatta-interfaces-dataplane-v1@mac:
+        required: false
+      vyatta-interfaces-dataplane-v1@mtu:
+        default: 1500
+        required: false
+        type: integer
+      vyatta-interfaces-dataplane-v1@tagnode:
+        required: false
+      vyatta-interfaces-dataplane-v1@vif:
+        description: '[List_of: vyatta-interfaces-dataplane-v1@vif]'
+        required: false
+      vyatta-interfaces-dataplane-v1@vlan-protocol:
+        default: '0x8100'
+        required: false
+  vyatta-interfaces-dataplane-v1@ip_type:
+    properties:
+      vyatta-interfaces-dataplane-v1@disable-forwarding:
+        required: false
+      vyatta-interfaces-dataplane-v1@enable-proxy-arp:
+        required: false
+      vyatta-interfaces-dataplane-v1@rpf-check:
+        default: disable
+        required: false
+  vyatta-interfaces-dataplane-v1@vif_type:
+    properties:
+      vyatta-interfaces-dataplane-v1@address:
+        description: '[List_of: if:address-dhcp]'
+        required: false
+      vyatta-interfaces-dataplane-v1@description:
+        required: false
+        type: string
+      vyatta-interfaces-dataplane-v1@disable:
+        required: false
+      vyatta-interfaces-dataplane-v1@disable-link-detect:
+        required: false
+      vyatta-interfaces-dataplane-v1@inner-vlan:
+        required: false
+        type: integer
+      vyatta-interfaces-dataplane-v1@ip:
+        required: false
+        type: vyatta-interfaces-dataplane-v1@ip_type
+      vyatta-interfaces-dataplane-v1@ipv6:
+        required: false
+      vyatta-interfaces-dataplane-v1@log_martians:
+        required: false
+      vyatta-interfaces-dataplane-v1@mtu:
+        required: false
+        type: integer
+      vyatta-interfaces-dataplane-v1@tagnode:
+        required: false
+        type: integer
+      vyatta-interfaces-dataplane-v1@vlan:
+        required: false
+        type: integer
+node_types:
+  vyatta-interfaces-v1:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      config:
+        required: false
+        type: config
+      metadata:
+        default:
+          modules:
+            vyatta-interfaces-dataplane-v1: '2015-11-23'
+            vyatta-interfaces-v1: '2015-08-05'
+          xmlns:
+            _: urn:vyatta.com:mgmt:vyatta-interfaces:1
+            vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+
+#module: vyatta-interfaces-v1
+#   +--rw interfaces
+#      +--rw vyatta-interfaces-dataplane-v1:dataplane* [tagnode]
+#         +--rw vyatta-interfaces-dataplane-v1:tagnode                dataplane-ifname
+#         +--rw vyatta-interfaces-dataplane-v1:vlan-protocol?         enumeration
+#         +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
+#         +--rw vyatta-interfaces-dataplane-v1:description?           string
+#         +--rw vyatta-interfaces-dataplane-v1:disable?               empty
+#         +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
+#         +--rw vyatta-interfaces-dataplane-v1:ip
+#         |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?       empty
+#         |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?              enumeration
+#         |  +--rw vyatta-interfaces-dataplane-v1:gratuitous-arp-count?   uint32
+#         |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?     empty
+#         +--rw vyatta-interfaces-dataplane-v1:ipv6
+#         +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
+#         +--rw vyatta-interfaces-dataplane-v1:vif* [tagnode]
+#         |  +--rw vyatta-interfaces-dataplane-v1:tagnode                uint32
+#         |  +--rw vyatta-interfaces-dataplane-v1:vlan?                  uint32
+#         |  +--rw vyatta-interfaces-dataplane-v1:inner-vlan?            uint32
+#         |  +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
+#         |  +--rw vyatta-interfaces-dataplane-v1:description?           string
+#         |  +--rw vyatta-interfaces-dataplane-v1:disable?               empty
+#         |  +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
+#         |  +--rw vyatta-interfaces-dataplane-v1:ip
+#         |  |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?   empty
+#         |  |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?     empty
+#         |  |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?            enumeration
+#         |  +--rw vyatta-interfaces-dataplane-v1:ipv6
+#         |  +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
+#         |  +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
+#         +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
+#         +--rw vyatta-interfaces-dataplane-v1:mac?                   types:mac-address
+#         +--rw vyatta-interfaces-dataplane-v1:cpu-affinity?          types:cpu-range
+#
