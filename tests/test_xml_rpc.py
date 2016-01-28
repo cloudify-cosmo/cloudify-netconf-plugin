@@ -13,6 +13,7 @@
 # limitations under the License.
 from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
+import cloudify_netconf.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
 import mock
@@ -40,6 +41,15 @@ class XmlRpcTest(unittest.TestCase):
         </hello>
     """
 
+    CORRECT_HELLO_1_1_REPLY = """
+        <hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+            <capabilities>
+                <capability>urn:ietf:params:netconf:base:1.0</capability>
+                <capability>urn:ietf:params:netconf:base:1.1</capability>
+            </capabilities>
+        </hello>
+    """
+
     CORRECT_CLOSE_REPLY = """
         <rpc-reply
             xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" message-id="14501">
@@ -54,8 +64,9 @@ class XmlRpcTest(unittest.TestCase):
             """:hello xmlns:rfc6020="urn:ietf:params:xml:ns:netconf""" +
             """:base:1.0">\n  <rfc6020:capabilities>\n    <rfc6020:""" +
             """capability>urn:ietf:params:netconf:base:1.0</rfc6020""" +
-            """:capability>\n  </rfc6020:capabilities>\n</rfc6020:h""" +
-            """ello>\n"""
+            """:capability>\n    <rfc6020:capability>urn:ietf:param""" +
+            """s:netconf:base:1.1</rfc6020:capability>\n  </rfc6020""" +
+            """:capabilities>\n</rfc6020:hello>\n"""
         )
         netconf_namespace, xmlns = utils.update_xmlns({})
         hello_string = rpc._generate_hello(xmlns, netconf_namespace, {})
@@ -75,6 +86,46 @@ class XmlRpcTest(unittest.TestCase):
         )
         self.assertEqual(goodbye_string, goodbye_message)
 
+    def test_update_data(self):
+        """update target for edit-config"""
+        # non edit config
+        base = {}
+        rpc._update_data(base, "non-edit-config", "a", "b")
+        self.assertEqual(base, {})
+
+        # already have target
+        base = {
+            "target": "c"
+        }
+        rpc._update_data(base, "edit-config", "a", "b")
+        self.assertEqual(base, {'target': 'c'})
+
+        # empty target
+        base = {
+            "target": {}
+        }
+        rpc._update_data(base, "edit-config", "a", "b")
+        self.assertEqual(base, {'target': {'b': None}})
+
+        # already have target
+        base = {
+            "a@target": "c"
+        }
+        rpc._update_data(base, "edit-config", "a", "b")
+        self.assertEqual(base, {'a@target': 'c'})
+
+        # empty target
+        base = {
+            "a@target": {}
+        }
+        rpc._update_data(base, "edit-config", "a", "b")
+        self.assertEqual(base, {'a@target': {'b': None}})
+
+        # without target
+        base = {}
+        rpc._update_data(base, "edit-config", "a", "b")
+        self.assertEqual(base, {'a@target': {'b': None}})
+
     def test_parse_response(self):
         """check parse response code"""
         xml = self.CORRECT_REPLY
@@ -91,6 +142,7 @@ class XmlRpcTest(unittest.TestCase):
                 netconf_namespace: utils.NETCONF_NAMESPACE
             }
         )
+
         # no namespace in reply
         xml = """
             <rpc-reply message-id="57380">
@@ -110,6 +162,7 @@ class XmlRpcTest(unittest.TestCase):
                 netconf_namespace: utils.NETCONF_NAMESPACE
             }
         )
+
         # dont have reply
         xml = """
             <rpc message-id="57380">
@@ -119,6 +172,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml)
+
         # error in reply
         xml = """
             <rpc-reply message-id="57380">
@@ -128,6 +182,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml)
+
         # error in reply with namespace
         xml = """
             <rpc-reply
@@ -140,6 +195,20 @@ class XmlRpcTest(unittest.TestCase):
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml)
 
+    def test_server_support_1_1(self):
+        """check support 1.1 response from server"""
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        self.assertFalse(
+            rpc._server_support_1_1(
+                xmlns, netconf_namespace, self.CORRECT_HELLO_REPLY
+            )
+        )
+        self.assertTrue(
+            rpc._server_support_1_1(
+                xmlns, netconf_namespace, self.CORRECT_HELLO_1_1_REPLY
+            )
+        )
+
     def test_run(self):
         """check connect/call rpc/close connection sequence"""
         fake_ctx = cfy_mocks.MockCloudifyContext()
@@ -150,10 +219,13 @@ class XmlRpcTest(unittest.TestCase):
         fake_ctx._node = node
         node.properties = {}
         node.runtime_properties = {}
+
         # no calls
         rpc.run(ctx=fake_ctx)
+
         # with empty list of calls
         rpc.run(ctx=fake_ctx, calls=[])
+
         # with list of calls, but without auth
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc.run(ctx=fake_ctx, calls=[{'action': 'get'}])
@@ -169,6 +241,9 @@ class XmlRpcTest(unittest.TestCase):
         nc_conn.close = mock.MagicMock(
             return_value=self.CORRECT_CLOSE_REPLY
         )
+
+        nc_conn.current_level = netconf_connection.NETCONF_1_0_CAPABILITY
+
         node.properties = {
             'netconf_auth': {
                 "user": "me",
@@ -199,6 +274,22 @@ class XmlRpcTest(unittest.TestCase):
                 }
             }])
 
+            # have lock/unlock operations
+            rpc.run(ctx=fake_ctx, calls=[{
+                'action': 'run_something',
+                'payload': {
+                    "a": "b"
+                }
+            }], lock=["rfc6020@candidate"])
+
+            # have some copy operations
+            rpc.run(ctx=fake_ctx, calls=[{
+                'action': 'run_something',
+                'payload': {
+                    "a": "b"
+                }
+            }], back_database="a", front_database="b")
+
             # check save to runtime properties
             self.assertEqual(instance.runtime_properties, {})
             rpc.run(ctx=fake_ctx, calls=[{
@@ -208,6 +299,7 @@ class XmlRpcTest(unittest.TestCase):
                 },
                 'save_to': 'd'
             }])
+
             # looks as we save something
             self.assertTrue("d" in instance.runtime_properties)
             self.assertTrue("d_ns" in instance.runtime_properties)
@@ -227,6 +319,27 @@ class XmlRpcTest(unittest.TestCase):
                 }
             }])
 
+            self.assertEqual(
+                nc_conn.current_level,
+                netconf_connection.NETCONF_1_0_CAPABILITY
+            )
+
+        # version 1.1
+        nc_conn.connect = mock.MagicMock(
+            return_value=self.CORRECT_HELLO_1_1_REPLY
+        )
+        with mock.patch(
+            'cloudify_netconf.netconf_connection.connection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            rpc.run(ctx=fake_ctx, calls=[{
+                'action': 'run_something',
+            }])
+
+            self.assertEqual(
+                nc_conn.current_level,
+                netconf_connection.NETCONF_1_1_CAPABILITY
+            )
 
 if __name__ == '__main__':
     unittest.main()

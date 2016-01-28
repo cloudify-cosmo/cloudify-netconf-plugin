@@ -20,15 +20,14 @@ import time
 import utils
 
 
-DEFAULT_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
-
-
 def _generate_hello(xmlns, netconf_namespace, capabilities):
     """generate initial hello message with capabilities"""
     if not capabilities:
         capabilities = []
-    if DEFAULT_CAPABILITY not in capabilities:
-        capabilities.append(DEFAULT_CAPABILITY)
+    if netconf_connection.NETCONF_1_0_CAPABILITY not in capabilities:
+        capabilities.append(netconf_connection.NETCONF_1_0_CAPABILITY)
+    if netconf_connection.NETCONF_1_1_CAPABILITY not in capabilities:
+        capabilities.append(netconf_connection.NETCONF_1_1_CAPABILITY)
     hello_dict = {
         netconf_namespace + '@capabilities': {
             netconf_namespace + '@capability': capabilities
@@ -41,7 +40,8 @@ def _generate_hello(xmlns, netconf_namespace, capabilities):
         netconf_namespace + '@hello'
     )
     return etree.tostring(
-        hello_xml, pretty_print=True, xml_declaration=True, encoding='UTF-8'
+        hello_xml, pretty_print=True, xml_declaration=True,
+        encoding='UTF-8'
     )
 
 
@@ -57,8 +57,29 @@ def _generate_goodbye(xmlns, netconf_namespace, message_id):
         netconf_namespace + '@rpc'
     )
     return etree.tostring(
-        goodbye_xml, pretty_print=True, xml_declaration=True, encoding='UTF-8'
+        goodbye_xml, pretty_print=True, xml_declaration=True,
+        encoding='UTF-8'
     )
+
+
+def _server_support_1_1(xmlns, netconf_namespace, response):
+    xml_node = etree.XML(response)
+    xpath = (
+        "/%s:hello/%s:capabilities/%s:capability" % (
+            netconf_namespace, netconf_namespace, netconf_namespace
+        )
+    )
+    capabilities = xml_node.xpath(xpath, namespaces=xmlns)
+    for node in capabilities:
+        xml_dict = {}
+        utils.generate_dict_node(
+            xml_dict, node,
+            xmlns
+        )
+        value = xml_dict.get(netconf_namespace + '@capability')
+        if value == netconf_connection.NETCONF_1_1_CAPABILITY:
+            return True
+    return False
 
 
 def _parse_response(xmlns, netconf_namespace, response):
@@ -109,7 +130,10 @@ def _merge_ns(base, override):
     return new_ns
 
 
-def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns):
+def _run_one(
+    netconf, message_id, operation, netconf_namespace, data, xmlns
+):
+    """run one call by netconf connection"""
     # rpc
     ctx.logger.info("rpc call")
     parent = utils.rpc_gen(
@@ -133,6 +157,7 @@ def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns):
 
 
 def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
+    """lock database by name"""
     operation = "@lock" if lock else "@unlock"
     data = {
         netconf_namespace + "@target": {
@@ -146,6 +171,7 @@ def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
 
 
 def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
+    """copy fron database values to back database"""
     data = {
         netconf_namespace + "@source": {
             front: {}
@@ -219,10 +245,17 @@ def run(**kwargs):
     )
     ctx.logger.info("i recieved: " + capabilities)
 
+    if _server_support_1_1(xmlns, netconf_namespace, capabilities):
+        ctx.logger.info("i will use version 1.1 of netconf protocol")
+        netconf.current_level = netconf_connection.NETCONF_1_1_CAPABILITY
+
     if 'lock' in kwargs:
         message_id = message_id + 1
         for name in kwargs['lock']:
-            _lock(name, True, netconf, message_id, netconf_namespace, xmlns)
+            _lock(
+                name, True, netconf, message_id, netconf_namespace,
+                xmlns
+            )
 
     if 'back_database' in kwargs and 'front_database' in kwargs:
         message_id = message_id + 1
@@ -293,12 +326,17 @@ def run(**kwargs):
     if 'lock' in kwargs:
         message_id = message_id + 1
         for name in kwargs['lock']:
-            _lock(name, False, netconf, message_id, netconf_namespace, xmlns)
+            _lock(
+                name, False, netconf, message_id, netconf_namespace,
+                xmlns
+            )
 
     # goodbye
     ctx.logger.info("connection close")
     message_id = message_id + 1
-    goodbye_string = _generate_goodbye(xmlns, netconf_namespace, message_id)
+    goodbye_string = _generate_goodbye(
+        xmlns, netconf_namespace, message_id
+    )
     ctx.logger.info("i sent: " + goodbye_string)
 
     response = netconf.close(goodbye_string)

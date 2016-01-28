@@ -11,14 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from cloudify import exceptions as cfy_exc
 import paramiko
 from StringIO import StringIO
 
+# final of any package
+NETCONF_1_0_END = "]]>]]>"
+# base level of communication
+NETCONF_1_0_CAPABILITY = 'urn:ietf:params:netconf:base:1.0'
+# package based communication
+NETCONF_1_1_CAPABILITY = 'urn:ietf:params:netconf:base:1.1'
+
 
 class connection(object):
-
-    # final of any package
-    MAGIC_END = "]]>]]>"
 
     # ssh connection
     ssh = None
@@ -26,6 +31,8 @@ class connection(object):
 
     # buffer for same packages, will save partial packages between calls
     buff = ""
+
+    current_level = NETCONF_1_0_CAPABILITY
 
     def connect(
         self, ip, user, hello_string, password=None, key_content=None
@@ -51,13 +58,53 @@ class connection(object):
         return capabilities
 
     def send(self, xml):
-        """send xml string by link"""
-        self.chan.send(xml + self.MAGIC_END)
-        while self.buff.find(self.MAGIC_END) == -1:
+        """send xml string by connection"""
+        if self.current_level == NETCONF_1_1_CAPABILITY:
+            return self._send_1_1(xml)
+        else:
+            return self._send_1_0(xml)
+
+    def _send_1_0(self, xml):
+        """send xml string with NETCONF_1_0_END by connection"""
+        if xml:
+            self.chan.send(xml + NETCONF_1_0_END)
+        while self.buff.find(NETCONF_1_0_END) == -1:
             self.buff += self.chan.recv(8192)
-        package_end = self.buff.find(self.MAGIC_END)
+        package_end = self.buff.find(NETCONF_1_0_END)
         response = self.buff[:package_end]
-        self.buff = self.buff[package_end + len(self.MAGIC_END):]
+        self.buff = self.buff[package_end + len(NETCONF_1_0_END):]
+        return response
+
+    def _send_1_1(self, xml):
+        """send xml string as package by connection"""
+        if xml:
+            message = "\n#" + str(len(xml)) + "\n"
+            message += xml
+            message += "\n##\n"
+            self.chan.send(message)
+        get_everything = False
+        response = ""
+        while not get_everything:
+            if len(self.buff) < 2:
+                self.buff += self.chan.recv(2)
+            # skip new line
+            if self.buff[:2] != "\n#":
+                raise cfy_exc.NonRecoverableError("no start")
+            self.buff = self.buff[2:]
+            # get package length
+            while self.buff.find("\n") == -1:
+                self.buff += self.chan.recv(20)
+            if self.buff[:2] == "#\n":
+                get_everything = True
+                self.buff = self.buff[2:]
+                break
+            length = int(self.buff[:self.buff.find("\n")])
+            self.buff = self.buff[self.buff.find("\n") + 1:]
+            # load current package
+            while length > len(self.buff):
+                self.buff += self.chan.recv(length - len(self.buff))
+            response += self.buff[:length]
+            self.buff = self.buff[length:]
         return response
 
     def close(self, goodbye_string):

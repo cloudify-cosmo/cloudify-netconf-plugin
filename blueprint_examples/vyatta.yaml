@@ -2,7 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_2
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
-  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+  - vyatta.base.yaml
 
 inputs:
 
@@ -43,6 +43,57 @@ node_types:
 node_templates:
 
   vyatta-impl:
+    type: vyatta-interfaces-v1
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+      config:
+        interfaces:
+          vyatta-interfaces-dataplane-v1@dataplane:
+            _@rfc6020@operation: replace
+            vyatta-interfaces-dataplane-v1@address: 172.16.10.1/16
+            vyatta-interfaces-dataplane-v1@description: slave interface
+            vyatta-interfaces-dataplane-v1@tagnode: dp0s3
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            lock:
+              - rfc6020@candidate
+            back_database: rfc6020@candidate
+            front_database: rfc6020@running
+            calls:
+              - action: get-config
+                payload:
+                  rfc6020@source:
+                    rfc6020@running: {}
+                  rfc6020@filter:
+                    _@rfc6020@type: subtree
+                    interfaces: {}
+                save_to: origin_interfaces
+
+              - action: edit-config
+                payload:
+                    rfc6020@config: { get_property: [ vyatta-impl, config ] }
+                    # you can skip this part if you have 'back_database'
+                    #rfc6020@target:
+                    #  candidate: null
+
+              - action: get-config
+                payload:
+                  rfc6020@source:
+                    rfc6020@candidate: {}
+                  rfc6020@filter:
+                    _@rfc6020@type: subtree
+                    interfaces: {}
+                save_to: current_interfaces
+
+  vyatta-back-impl:
     type: vyatta-machine
     properties:
       netconf_auth:
@@ -73,34 +124,47 @@ node_templates:
             calls:
               - action: get-config
                 payload:
-                  source:
-                    running: {}
-                  filter:
+                  rfc6020@source:
+                    rfc6020@running: {}
+                  rfc6020@filter:
                     _@@type: subtree
                     vyatta_interfaces@interfaces: {}
               - action: lock
-                payload: { get_property: [ vyatta-impl, rfc6020@lock ] }
+                payload: { get_property: [ vyatta-back-impl, rfc6020@lock ] }
 
               - action: copy-config
-                payload: { get_property: [ vyatta-impl, rfc6020@copy-config ] }
+                payload: { get_property: [ vyatta-back-impl, rfc6020@copy-config ] }
 
               - action: edit-config
                 payload:
-                  config:
+                  rfc6020@config:
                     vyatta_interfaces@interfaces:
                       vyatta_dataplane@dataplane:
                         _@rfc6020@operation: replace
-                        vyatta_dataplane@address: 172.43.0.1/24
-                        vyatta_dataplane@tagnode: dp0o33557248
-                  target:
-                    candidate: null
+                        vyatta_dataplane@address: 172.16.10.2/16
+                        vyatta_dataplane@tagnode: dp0s3
+                  rfc6020@target:
+                    rfc6020@candidate: null
 
               - action: copy-config
                 payload:
-                  source:
-                    candidate: {}
-                  target:
+                  rfc6020@source:
+                    rfc6020@candidate: {}
+                  rfc6020@target:
                     running: {}
 
-              - action: unlock
-                payload: { get_property: [ vyatta-impl, rfc6020@unlock ] }
+              - action: rfc6020@unlock
+                payload: { get_property: [ vyatta-back-impl, rfc6020@unlock ] }
+
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: vyatta-impl
+
+
+outputs:
+  config:
+    description: Previous config
+    value: { get_attribute: [ vyatta-impl, origin_interfaces ] }
+  current_config:
+    description: Previous config
+    value: { get_attribute: [ vyatta-impl, current_interfaces ] }
