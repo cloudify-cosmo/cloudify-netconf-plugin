@@ -105,6 +105,8 @@ node_types:
           xmlns:
             _: urn:vyatta.com:mgmt:vyatta-interfaces:1
             vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta-system-network-v1: urn:vyatta.com:mgmt:vyatta-system-network:1
+            vyatta-system: urn:vyatta.com:mgmt:vyatta-system:1
 
 #module: vyatta-interfaces-v1
 #   +--rw interfaces

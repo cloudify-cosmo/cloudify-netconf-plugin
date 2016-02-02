@@ -56,6 +56,12 @@ def _node_name(name, namespace, xmlns):
 
 
 def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
+    # harcoded magic value for case when we need set attributes to some tag
+    # with text value inside
+    if node_name == "_@@":
+        parent.text = str(value)
+        return
+    # general logic
     attribute, tag_namespace, tag_name = _node_name(
         node_name, namespace, xmlns
     )
@@ -193,6 +199,8 @@ def _node_to_dict(parent, xml_node, xmlns):
         value = xml_node.text
     else:
         value = {}
+        if xml_node.text and len(xml_node.text.strip()):
+            value["_@@"] = xml_node.text.strip()
         for i in xml_node.getchildren():
             _node_to_dict(value, i, xmlns)
         for k in xml_node.attrib:

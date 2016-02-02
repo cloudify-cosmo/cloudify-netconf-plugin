@@ -23,7 +23,8 @@ class UtilsMockTest(unittest.TestCase):
     SIMPLE_DICT = {
         'a': {
             'b': {
-                '_@@m': 'g'
+                '_@@m': 'g',
+                '_@@': 'b'
             },
             'c': {
                 '_@nm@nm': 'update',
@@ -186,7 +187,7 @@ class UtilsMockTest(unittest.TestCase):
             """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netc""" +
             """onf:base:1.0"><a xmlns:ns0="urn:ietf:params:xml:ns:n""" +
             """etconf:base:1.0"><c nm:nm="update"><d>1</d><d>2</d><""" +
-            """d>3</d></c><b ns0:m="g"/></a></rpc>"""
+            """d>3</d></c><b ns0:m="g">b</b></a></rpc>"""
         )
 
     def test_dict_to_xml_turing(self):

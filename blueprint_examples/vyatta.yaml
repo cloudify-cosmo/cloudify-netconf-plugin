@@ -55,7 +55,7 @@ node_templates:
         interfaces:
           vyatta-interfaces-dataplane-v1@dataplane:
             _@rfc6020@operation: replace
-            vyatta-interfaces-dataplane-v1@address: 172.16.10.1/16
+            vyatta-interfaces-dataplane-v1@address: 172.16.10.10/16
             vyatta-interfaces-dataplane-v1@description: slave interface
             vyatta-interfaces-dataplane-v1@tagnode: dp0s3
 
@@ -68,23 +68,30 @@ node_templates:
             back_database: rfc6020@candidate
             front_database: rfc6020@running
             calls:
-              - action: get-config
+              - action: rfc6020@get-config
                 payload:
                   rfc6020@source:
                     rfc6020@running: {}
                   rfc6020@filter:
                     _@rfc6020@type: subtree
-                    interfaces: {}
+                    vyatta-system@system:
+                      vyatta-system-network-v1@name-server: {}
                 save_to: origin_interfaces
 
-              - action: edit-config
+              - action: rfc6020@edit-config
                 payload:
                     rfc6020@config: { get_property: [ vyatta-impl, config ] }
                     # you can skip this part if you have 'back_database'
                     #rfc6020@target:
                     #  candidate: null
 
-              - action: get-config
+              - action: rfc6020@edit-config
+                payload:
+                    rfc6020@config:
+                      vyatta-system@system:
+                        vyatta-system-network-v1@name-server: 8.8.4.4
+
+              - action: rfc6020@get-config
                 payload:
                   rfc6020@source:
                     rfc6020@candidate: {}
@@ -122,31 +129,35 @@ node_templates:
         create:
           inputs:
             calls:
-              - action: get-config
+              - action: rfc6020@get-config
                 payload:
                   rfc6020@source:
                     rfc6020@running: {}
                   rfc6020@filter:
                     _@@type: subtree
                     vyatta_interfaces@interfaces: {}
-              - action: lock
+              - action: rfc6020@lock
                 payload: { get_property: [ vyatta-back-impl, rfc6020@lock ] }
 
-              - action: copy-config
+              - action: rfc6020@copy-config
                 payload: { get_property: [ vyatta-back-impl, rfc6020@copy-config ] }
 
-              - action: edit-config
+              - action: rfc6020@edit-config
                 payload:
                   rfc6020@config:
+                    vyatta-system@system:
+                      vyatta-system-network-v1@name-server:
+                        _@rfc6020@operation: delete
+                        _@@: 8.8.4.4
                     vyatta_interfaces@interfaces:
                       vyatta_dataplane@dataplane:
                         _@rfc6020@operation: replace
-                        vyatta_dataplane@address: 172.16.10.2/16
+                        vyatta_dataplane@address: 172.16.10.22/16
                         vyatta_dataplane@tagnode: dp0s3
                   rfc6020@target:
                     rfc6020@candidate: null
 
-              - action: copy-config
+              - action: rfc6020@copy-config
                 payload:
                   rfc6020@source:
                     rfc6020@candidate: {}
