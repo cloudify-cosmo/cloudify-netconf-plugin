@@ -11,13 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from cloudify import exceptions as cfy_exc
 import cloudify_netconf.netconf_connection as netconf_connection
 import mock
 import paramiko
 import unittest
 
 
-class nwtConfConnectionMockTest(unittest.TestCase):
+class NetConfConnectionMockTest(unittest.TestCase):
 
     def generate_all_mocks(self):
         """will generate netconf obj with all need mocks"""
@@ -28,7 +29,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         netconf.chan.close = mock.MagicMock()
         netconf.chan.send = mock.MagicMock()
         netconf.chan.recv = mock.MagicMock(
-            return_value=netconf_connection.connection.MAGIC_END
+            return_value=netconf_connection.NETCONF_1_0_END
         )
         return netconf
 
@@ -37,7 +38,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         netconf = self.generate_all_mocks()
         netconf.chan.recv = mock.MagicMock(
             return_value=(
-                "pong" + netconf_connection.connection.MAGIC_END
+                "pong" + netconf_connection.NETCONF_1_0_END
             )
         )
         self.assertEqual(
@@ -45,14 +46,73 @@ class nwtConfConnectionMockTest(unittest.TestCase):
             netconf.send("ping")
         )
         netconf.chan.send.assert_called_with(
-            "ping" + netconf_connection.connection.MAGIC_END
+            "ping" + netconf_connection.NETCONF_1_0_END
         )
+
+    def test_send_1_1(self):
+        """check send with 1.1 version"""
+        netconf = self.generate_all_mocks()
+        netconf.current_level = netconf_connection.NETCONF_1_1_CAPABILITY
+        netconf.chan.recv = mock.MagicMock(
+            return_value=(
+                "\n#5\n<rpc>\n#6\n</rpc>\n##\n"
+            )
+        )
+        self.assertEqual(
+            "<rpc></rpc>",
+            netconf.send("ping")
+        )
+        netconf.chan.send.assert_called_with(
+            "\n#4\nping\n##\n"
+        )
+        # check with preloaded
+        netconf.buff = "\n#25\n12345678901234567890"
+        netconf.chan.recv = mock.MagicMock(
+            return_value=(
+                "12345\n#5\n<rpc>\n#6\n</rpc>\n##\n"
+            )
+        )
+        self.assertEqual(
+            "1234567890123456789012345<rpc></rpc>",
+            netconf.send("ping")
+        )
+        netconf.chan.send.assert_called_with(
+            "\n#4\nping\n##\n"
+        )
+        self.assertEqual(
+            "", netconf.buff
+        )
+        # check with preloaded
+        netconf.buff = "\n#5"
+        netconf.chan.recv = mock.MagicMock(
+            return_value=(
+                "\n12345\n#5\n<rpc>\n#6\n</rpc>\n##\n"
+            )
+        )
+        self.assertEqual(
+            "12345<rpc></rpc>",
+            netconf.send("ping")
+        )
+        netconf.chan.send.assert_called_with(
+            "\n#4\nping\n##\n"
+        )
+        self.assertEqual(
+            "", netconf.buff
+        )
+        # broken package
+        netconf.chan.recv = mock.MagicMock(
+            return_value=(
+                "\n1"
+            )
+        )
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            netconf.send("ping")
 
     def test_close(self):
         netconf = self.generate_all_mocks()
         netconf.chan.recv = mock.MagicMock(
             return_value=(
-                "ok" + netconf_connection.connection.MAGIC_END
+                "ok" + netconf_connection.NETCONF_1_0_END
             )
         )
         self.assertEqual(
@@ -60,7 +120,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
             netconf.close("close")
         )
         netconf.chan.send.assert_called_with(
-            "close" + netconf_connection.connection.MAGIC_END
+            "close" + netconf_connection.NETCONF_1_0_END
         )
         netconf.chan.close.assert_called_with()
         netconf.ssh.close.assert_called_with()
@@ -75,7 +135,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         channel_mock = mock.Mock()
         channel_mock.recv = mock.MagicMock(
             return_value=(
-                "ok" + netconf_connection.connection.MAGIC_END
+                "ok" + netconf_connection.NETCONF_1_0_END
             )
         )
         channel_mock.send = mock.MagicMock()
@@ -114,7 +174,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         transport_mock.open_session.assert_called_with()
         channel_mock.invoke_subsystemassert_called_with('netconf')
         channel_mock.send.assert_called_with(
-            "hi" + netconf_connection.connection.MAGIC_END
+            "hi" + netconf_connection.NETCONF_1_0_END
         )
 
     def test_connect_with_key(self):
@@ -127,7 +187,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         channel_mock = mock.Mock()
         channel_mock.recv = mock.MagicMock(
             return_value=(
-                "ok" + netconf_connection.connection.MAGIC_END
+                "ok" + netconf_connection.NETCONF_1_0_END
             )
         )
         channel_mock.send = mock.MagicMock()
@@ -169,7 +229,7 @@ class nwtConfConnectionMockTest(unittest.TestCase):
         transport_mock.open_session.assert_called_with()
         channel_mock.invoke_subsystemassert_called_with('netconf')
         channel_mock.send.assert_called_with(
-            "hi" + netconf_connection.connection.MAGIC_END
+            "hi" + netconf_connection.NETCONF_1_0_END
         )
 
 
