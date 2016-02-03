@@ -58,6 +58,19 @@ node_templates:
             vyatta-interfaces-dataplane-v1@address: 172.16.10.10/16
             vyatta-interfaces-dataplane-v1@description: slave interface
             vyatta-interfaces-dataplane-v1@tagnode: dp0s3
+          vyatta-interfaces-openvpn-v1@openvpn:
+            vyatta-interfaces-openvpn-v1@mode: server
+            vyatta-interfaces-openvpn-v1@openvpn-option: --push dhcp-option DNS 192.168.1.1
+            vyatta-interfaces-openvpn-v1@replace-default-route: null
+            vyatta-interfaces-openvpn-v1@server:
+              vyatta-interfaces-openvpn-v1@subnet: 192.168.1.0/24
+            vyatta-interfaces-openvpn-v1@tagnode: vtun0
+            vyatta-interfaces-openvpn-v1@tls:
+              vyatta-interfaces-openvpn-v1@ca-cert-file: /usr/share/doc/openvpn/examples/sample-keys/ca.crt
+              vyatta-interfaces-openvpn-v1@cert-file: /usr/share/doc/openvpn/examples/sample-keys/server.crt
+              vyatta-interfaces-openvpn-v1@dh-file: /usr/share/doc/openvpn/examples/sample-keys/dh2048.pem
+              vyatta-interfaces-openvpn-v1@key-file: /usr/share/doc/openvpn/examples/sample-keys/server.key
+
 
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -74,8 +87,7 @@ node_templates:
                     rfc6020@running: {}
                   rfc6020@filter:
                     _@rfc6020@type: subtree
-                    vyatta-system@system:
-                      vyatta-system-network-v1@name-server: {}
+                    vyatta_interfaces@interfaces: {}
                 save_to: origin_interfaces
 
               - action: rfc6020@edit-config
@@ -90,6 +102,16 @@ node_templates:
                     rfc6020@config:
                       vyatta-system@system:
                         vyatta-system-network-v1@name-server: 8.8.4.4
+                      vyatta-services@service:
+                        vyatta-service-nat-v1@nat:
+                          vyatta-service-nat-v1@source:
+                            vyatta-service-nat-v1@rule:
+                              vyatta-service-nat-v1@outbound-interface: dp0s3
+                              vyatta-service-nat-v1@source:
+                                vyatta-service-nat-v1@address: 192.168.1.0/24
+                              vyatta-service-nat-v1@tagnode: '10'
+                              vyatta-service-nat-v1@translation:
+                                vyatta-service-nat-v1@address: 172.16.10.11
 
               - action: rfc6020@get-config
                 payload:
@@ -136,6 +158,9 @@ node_templates:
                   rfc6020@filter:
                     _@@type: subtree
                     vyatta_interfaces@interfaces: {}
+        delete:
+          inputs:
+            calls:
               - action: rfc6020@lock
                 payload: { get_property: [ vyatta-back-impl, rfc6020@lock ] }
 
@@ -149,7 +174,18 @@ node_templates:
                       vyatta-system-network-v1@name-server:
                         _@rfc6020@operation: delete
                         _@@: 8.8.4.4
+
+                    vyatta-services@service:
+                      vyatta-service-nat-v1@nat:
+                        vyatta-service-nat-v1@source:
+                          vyatta-service-nat-v1@rule:
+                            vyatta-service-nat-v1@tagnode: '10'
+                            _@rfc6020@operation: delete
+
                     vyatta_interfaces@interfaces:
+                      vyatta-interfaces-openvpn-v1@openvpn:
+                        _@rfc6020@operation: delete
+                        vyatta-interfaces-openvpn-v1@tagnode: vtun0
                       vyatta_dataplane@dataplane:
                         _@rfc6020@operation: replace
                         vyatta_dataplane@address: 172.16.10.22/16
