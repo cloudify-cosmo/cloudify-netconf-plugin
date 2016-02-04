@@ -37,13 +37,13 @@ node_types:
       metadata:
         default:
           xmlns:
-            vyatta_dataplane: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
-            vyatta_interfaces: "urn:vyatta.com:mgmt:vyatta-interfaces:1"
+            vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta-if-v1: urn:vyatta.com:mgmt:vyatta-interfaces:1
 
 node_templates:
 
   vyatta-impl:
-    type: vyatta-interfaces-v1
+    type: vyatta-services-v1
     properties:
       netconf_auth:
         user: { get_input: netconf_user }
@@ -52,7 +52,7 @@ node_templates:
         key_content: { get_input: netconf_key_content }
 
       config:
-        interfaces:
+        vyatta-if-v1@interfaces:
           vyatta-interfaces-dataplane-v1@dataplane:
             _@rfc6020@operation: replace
             vyatta-interfaces-dataplane-v1@address: 172.16.10.10/16
@@ -100,9 +100,9 @@ node_templates:
               - action: rfc6020@edit-config
                 payload:
                     rfc6020@config:
-                      vyatta-system@system:
+                      vyatta-system-v1@system:
                         vyatta-system-network-v1@name-server: 8.8.4.4
-                      vyatta-services@service:
+                      vyatta-services-v1@service:
                         vyatta-service-nat-v1@nat:
                           vyatta-service-nat-v1@source:
                             vyatta-service-nat-v1@rule:
@@ -119,7 +119,7 @@ node_templates:
                     rfc6020@candidate: {}
                   rfc6020@filter:
                     _@rfc6020@type: subtree
-                    interfaces: {}
+                    vyatta-if-v1@interfaces: {}
                 save_to: current_interfaces
 
   vyatta-back-impl:
@@ -157,7 +157,7 @@ node_templates:
                     rfc6020@running: {}
                   rfc6020@filter:
                     _@@type: subtree
-                    vyatta_interfaces@interfaces: {}
+                    vyatta-if-v1@interfaces: {}
         delete:
           inputs:
             calls:
@@ -170,26 +170,26 @@ node_templates:
               - action: rfc6020@edit-config
                 payload:
                   rfc6020@config:
-                    vyatta-system@system:
+                    vyatta-system-v1@system:
                       vyatta-system-network-v1@name-server:
                         _@rfc6020@operation: delete
                         _@@: 8.8.4.4
 
-                    vyatta-services@service:
+                    vyatta-services-v1@service:
                       vyatta-service-nat-v1@nat:
                         vyatta-service-nat-v1@source:
                           vyatta-service-nat-v1@rule:
                             vyatta-service-nat-v1@tagnode: '10'
                             _@rfc6020@operation: delete
 
-                    vyatta_interfaces@interfaces:
+                    vyatta-if-v1@interfaces:
                       vyatta-interfaces-openvpn-v1@openvpn:
                         _@rfc6020@operation: delete
                         vyatta-interfaces-openvpn-v1@tagnode: vtun0
-                      vyatta_dataplane@dataplane:
+                      vyatta-interfaces-dataplane-v1@dataplane:
                         _@rfc6020@operation: replace
-                        vyatta_dataplane@address: 172.16.10.22/16
-                        vyatta_dataplane@tagnode: dp0s3
+                        vyatta-interfaces-dataplane-v1@address: 172.16.10.22/16
+                        vyatta-interfaces-dataplane-v1@tagnode: dp0s3
                   rfc6020@target:
                     rfc6020@candidate: null
 
