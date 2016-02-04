@@ -97,33 +97,33 @@ class XmlRpcTest(unittest.TestCase):
         base = {
             "target": "c"
         }
-        rpc._update_data(base, "edit-config", "a", "b")
+        rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'target': 'c'})
 
         # empty target
         base = {
             "target": {}
         }
-        rpc._update_data(base, "edit-config", "a", "b")
+        rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'target': {'b': None}})
 
         # already have target
         base = {
             "a@target": "c"
         }
-        rpc._update_data(base, "edit-config", "a", "b")
+        rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'a@target': 'c'})
 
         # empty target
         base = {
             "a@target": {}
         }
-        rpc._update_data(base, "edit-config", "a", "b")
+        rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'a@target': {'b': None}})
 
         # without target
         base = {}
-        rpc._update_data(base, "edit-config", "a", "b")
+        rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'a@target': {'b': None}})
 
     def test_parse_response(self):

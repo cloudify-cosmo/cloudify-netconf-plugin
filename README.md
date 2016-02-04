@@ -20,3 +20,9 @@ For check generation:
   cd tools/examples
   yang2dsdl -t config turing-machine.yang
   netconfxml2yaml.py config.xml turing-machine-config.rng  turing-machine-config.sch
+
+Vyatta example is valid only for Brocade Vyatta Network OS 4.1 R2 and before run vyatta bluerint run as root on router:
+* cd /usr/share/doc/openvpn/examples/sample-keys/
+* bash gen-sample-keys.sh
+
+Script name can be different and related to Brocade vRouter version.

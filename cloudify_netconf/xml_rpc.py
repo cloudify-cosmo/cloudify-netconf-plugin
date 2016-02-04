@@ -188,7 +188,7 @@ def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
 
 def _update_data(data, operation, netconf_namespace, back):
     """update operation with database name"""
-    if operation != 'edit-config':
+    if operation != 'rfc6020@edit-config':
         return
     if "target" in data:
         if not data["target"]:
@@ -299,6 +299,9 @@ def run(**kwargs):
         data = call.get('payload', {})
 
         message_id = message_id + 1
+
+        if "@" not in operation:
+            operation = "_@" + operation
 
         _update_data(
             data, operation, netconf_namespace,

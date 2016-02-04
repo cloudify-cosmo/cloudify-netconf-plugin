@@ -5,20 +5,31 @@ imports:
   - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
 
 data_types:
-  config:
+  _config:
     properties:
-      interfaces:
+      vyatta-if-v1@interfaces:
         required: false
-        type: interfaces_type
-  interfaces_type:
+        type: vyatta-if-v1@interfaces_type
+      vyatta-services-v1@service:
+        required: false
+        type: vyatta-services-v1@service_type
+      vyatta-system-v1@system:
+        required: false
+        type: vyatta-system-v1@system_type
+  _rpc:
+    properties: {}
+  vyatta-if-v1@interfaces_type:
     properties:
       vyatta-interfaces-dataplane-v1@dataplane:
-        description: '[List_of: vyatta-interfaces-dataplane-v1@dataplane]'
+        description: '[List_of: vyatta-interfaces-dataplane-v1@dataplane_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@openvpn:
+        description: '[List_of: vyatta-interfaces-openvpn-v1@openvpn_type]'
         required: false
   vyatta-interfaces-dataplane-v1@dataplane_type:
     properties:
       vyatta-interfaces-dataplane-v1@address:
-        description: '[List_of: if:address-dhcp]'
+        description: '[List_of: if:address-dhcp_type]'
         required: false
       vyatta-interfaces-dataplane-v1@cpu-affinity:
         required: false
@@ -45,7 +56,7 @@ data_types:
       vyatta-interfaces-dataplane-v1@tagnode:
         required: false
       vyatta-interfaces-dataplane-v1@vif:
-        description: '[List_of: vyatta-interfaces-dataplane-v1@vif]'
+        description: '[List_of: vyatta-interfaces-dataplane-v1@vif_type]'
         required: false
       vyatta-interfaces-dataplane-v1@vlan-protocol:
         default: '0x8100'
@@ -57,12 +68,12 @@ data_types:
       vyatta-interfaces-dataplane-v1@enable-proxy-arp:
         required: false
       vyatta-interfaces-dataplane-v1@rpf-check:
-        default: disable
+        default: 'disable'
         required: false
   vyatta-interfaces-dataplane-v1@vif_type:
     properties:
       vyatta-interfaces-dataplane-v1@address:
-        description: '[List_of: if:address-dhcp]'
+        description: '[List_of: if:address-dhcp_type]'
         required: false
       vyatta-interfaces-dataplane-v1@description:
         required: false
@@ -90,54 +101,892 @@ data_types:
       vyatta-interfaces-dataplane-v1@vlan:
         required: false
         type: integer
+  vyatta-interfaces-openvpn-v1@auth_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@ldap:
+        description: '[List_of: string_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@local:
+        required: false
+        type: vyatta-interfaces-openvpn-v1@local_type
+  vyatta-interfaces-openvpn-v1@client_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@disable:
+        required: false
+      vyatta-interfaces-openvpn-v1@ip:
+        required: false
+      vyatta-interfaces-openvpn-v1@push-route:
+        description: '[List_of: types:ipv4-prefix_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@subnet:
+        description: '[List_of: types:ipv4-prefix_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@tagnode:
+        required: false
+        type: string
+  vyatta-interfaces-openvpn-v1@local_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@group:
+        description: '[List_of: string_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@user:
+        description: '[List_of: string_type]'
+        required: false
+  vyatta-interfaces-openvpn-v1@openvpn_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@auth:
+        required: false
+        type: vyatta-interfaces-openvpn-v1@auth_type
+      vyatta-interfaces-openvpn-v1@client-cert-not-required:
+        required: false
+      vyatta-interfaces-openvpn-v1@description:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@device-type:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@disable:
+        required: false
+      vyatta-interfaces-openvpn-v1@encryption:
+        required: false
+      vyatta-interfaces-openvpn-v1@hash:
+        required: false
+      vyatta-interfaces-openvpn-v1@ip:
+        required: false
+      vyatta-interfaces-openvpn-v1@ipv6:
+        required: false
+      vyatta-interfaces-openvpn-v1@local-address:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@local-host:
+        required: false
+      vyatta-interfaces-openvpn-v1@local-port:
+        required: false
+        type: integer
+      vyatta-interfaces-openvpn-v1@mode:
+        required: false
+      vyatta-interfaces-openvpn-v1@openvpn-option:
+        description: '[List_of: string_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@protocol:
+        required: false
+      vyatta-interfaces-openvpn-v1@remote-address:
+        required: false
+      vyatta-interfaces-openvpn-v1@remote-host:
+        description: '[List_of: string_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@remote-port:
+        required: false
+        type: integer
+      vyatta-interfaces-openvpn-v1@replace-default-route:
+        required: false
+        type: vyatta-interfaces-openvpn-v1@replace-default-route_type
+      vyatta-interfaces-openvpn-v1@server:
+        required: false
+        type: vyatta-interfaces-openvpn-v1@server_type
+      vyatta-interfaces-openvpn-v1@shared-secret-key-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@tagnode:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@tls:
+        required: false
+        type: vyatta-interfaces-openvpn-v1@tls_type
+  vyatta-interfaces-openvpn-v1@replace-default-route_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@local:
+        required: false
+  vyatta-interfaces-openvpn-v1@server_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@client:
+        description: '[List_of: vyatta-interfaces-openvpn-v1@client_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@domain-name:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@max-connections:
+        required: false
+        type: integer
+      vyatta-interfaces-openvpn-v1@name-server:
+        description: '[List_of: types:ipv4-address_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@push-route:
+        description: '[List_of: types:ipv4-prefix_type]'
+        required: false
+      vyatta-interfaces-openvpn-v1@subnet:
+        required: false
+      vyatta-interfaces-openvpn-v1@topology:
+        required: false
+  vyatta-interfaces-openvpn-v1@tls_type:
+    properties:
+      vyatta-interfaces-openvpn-v1@ca-cert-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@cert-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@crl-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@dh-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@key-file:
+        required: false
+        type: string
+      vyatta-interfaces-openvpn-v1@role:
+        required: false
+  vyatta-service-nat-v1@destination_type:
+    properties:
+      vyatta-service-nat-v1@address:
+        required: false
+        type: string
+      vyatta-service-nat-v1@port:
+        required: false
+        type: string
+  vyatta-service-nat-v1@ipv6-to-ipv4_type:
+    properties:
+      vyatta-service-nat-v1@rule:
+        description: '[List_of: vyatta-service-nat-v1@rule_type]'
+        required: false
+  vyatta-service-nat-v1@nat_type:
+    properties:
+      vyatta-service-nat-v1@destination:
+        required: false
+        type: vyatta-service-nat-v1@destination_type
+      vyatta-service-nat-v1@ipv6-to-ipv4:
+        required: false
+        type: vyatta-service-nat-v1@ipv6-to-ipv4_type
+      vyatta-service-nat-v1@source:
+        required: false
+        type: vyatta-service-nat-v1@source_type
+  vyatta-service-nat-v1@rule_type:
+    properties:
+      vyatta-service-nat-v1@description:
+        required: false
+        type: string
+      vyatta-service-nat-v1@destination:
+        required: false
+        type: vyatta-service-nat-v1@destination_type
+      vyatta-service-nat-v1@disable:
+        required: false
+      vyatta-service-nat-v1@exclude:
+        required: false
+      vyatta-service-nat-v1@inbound-interface:
+        required: false
+        type: string
+      vyatta-service-nat-v1@log:
+        required: false
+      vyatta-service-nat-v1@protocol:
+        required: false
+        type: string
+      vyatta-service-nat-v1@source:
+        required: false
+        type: vyatta-service-nat-v1@source_type
+      vyatta-service-nat-v1@tagnode:
+        required: false
+        type: integer
+      vyatta-service-nat-v1@translation:
+        required: false
+        type: vyatta-service-nat-v1@translation_type
+  vyatta-service-nat-v1@source_type:
+    properties:
+      vyatta-service-nat-v1@address:
+        required: false
+        type: string
+      vyatta-service-nat-v1@port:
+        required: false
+        type: string
+  vyatta-service-nat-v1@translation_type:
+    properties:
+      vyatta-service-nat-v1@address:
+        required: false
+        type: string
+      vyatta-service-nat-v1@port:
+        required: false
+        type: string
+  vyatta-services-v1@service_type:
+    properties:
+      vyatta-service-nat-v1@nat:
+        required: false
+        type: vyatta-service-nat-v1@nat_type
+  vyatta-system-network-v1@domain-search_type:
+    properties:
+      vyatta-system-network-v1@domain:
+        description: '[List_of: string_type]'
+        required: false
+  vyatta-system-network-v1@host-name_type:
+    properties:
+      vyatta-system-network-v1@alias:
+        description: '[List_of: string_type]'
+        required: false
+      vyatta-system-network-v1@inet:
+        required: false
+      vyatta-system-network-v1@tagnode:
+        required: false
+        type: string
+  vyatta-system-network-v1@ip_type:
+    properties:
+      vyatta-system-network-v1@arp:
+        required: false
+      vyatta-system-network-v1@disable-forwarding:
+        required: false
+  vyatta-system-network-v1@ipv6_type:
+    properties:
+      vyatta-system-network-v1@disable:
+        required: false
+      vyatta-system-network-v1@disable-forwarding:
+        required: false
+      vyatta-system-network-v1@neighbor:
+        required: false
+        type: vyatta-system-network-v1@neighbor_type
+      vyatta-system-network-v1@strict-dad:
+        required: false
+  vyatta-system-network-v1@neighbor_type:
+    properties:
+      vyatta-system-network-v1@table-size:
+        default: '8192'
+        required: false
+  vyatta-system-network-v1@static-host-mapping_type:
+    properties:
+      vyatta-system-network-v1@host-name:
+        description: '[List_of: vyatta-system-network-v1@host-name_type]'
+        required: false
+  vyatta-system-v1@system_type:
+    properties:
+      vyatta-system-network-v1@domain-name:
+        required: false
+      vyatta-system-network-v1@domain-search:
+        required: false
+        type: vyatta-system-network-v1@domain-search_type
+      vyatta-system-network-v1@host-name:
+        default: vyatta
+        required: false
+        type: string
+      vyatta-system-network-v1@ip:
+        required: false
+        type: vyatta-system-network-v1@ip_type
+      vyatta-system-network-v1@ipv6:
+        required: false
+        type: vyatta-system-network-v1@ipv6_type
+      vyatta-system-network-v1@name-server:
+        description: '[List_of: union_type]'
+        required: false
+      vyatta-system-network-v1@static-host-mapping:
+        required: false
+        type: vyatta-system-network-v1@static-host-mapping_type
 node_types:
-  vyatta-interfaces-v1:
+  vyatta-services-v1:
     derived_from: cloudify.netconf.nodes.xml_rpc
     properties:
       config:
         required: false
-        type: config
+        type: _config
       metadata:
         default:
+          dsdl: '<?xml version="1.0" encoding="UTF-8"?><grammar xmlns:vyatta-if-v1="urn:vyatta.com:mgmt:vyatta-interfaces:1"
+            xmlns:vyatta-interfaces-dataplane-v1="urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1"
+            xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+            xmlns="http://relaxng.org/ns/structure/1.0" xmlns:vyatta-system-network-v1="urn:vyatta.com:mgmt:vyatta-system-network:1"
+            xmlns:vyatta-system-v1="urn:vyatta.com:mgmt:vyatta-system:1" xmlns:vyatta-service-nat-v1="urn:vyatta.com:mgmt:vyatta-service-nat:1"
+            xmlns:configd-v1="urn:vyatta.com:mgmt:configd:1" xmlns:vyatta-interfaces-openvpn-v1="urn:vyatta.com:mgmt:vyatta-interfaces-openvpn:1"
+            xmlns:vyatta-services-v1="urn:vyatta.com:mgmt:vyatta-services:1" xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+            xmlns:dc="http://purl.org/dc/terms"><dc:date>2016-02-04</dc:date><start><grammar
+            nma:module="vyatta-interfaces-dataplane-v1" ns="urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1"><dc:source>YANG
+            module ''vyatta-interfaces-dataplane-v1'' revision 2015-11-23</dc:source><start><nma:data></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-system-network-v1" ns="urn:vyatta.com:mgmt:vyatta-system-network:1"><dc:source>YANG
+            module ''vyatta-system-network-v1'' revision 2015-08-14</dc:source><start><nma:data></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-interfaces-v1" ns="urn:vyatta.com:mgmt:vyatta-interfaces:1"><dc:source>YANG
+            module ''vyatta-interfaces-v1'' revision 2015-08-05</dc:source><start><nma:data><optional><element
+            name="vyatta-if-v1:interfaces"><interleave><configd-v1:help text="Network
+            interfaces"/><configd-v1:begin executable="/opt/vyatta/sbin/vyatta-delete-addrs.pl"/><configd-v1:end
+            executable="/bin/run-parts ${vyatta_datarootdir}/tmplscripts${CONFIGD_PATH}/configd_end.d"/><configd-v1:validate
+            executable="vyatta-interfaces.pl --valid-addrs-commit"/><zeroOrMore><element
+            nma:key="vyatta-interfaces-dataplane-v1:tagnode" name="vyatta-interfaces-dataplane-v1:dataplane"><element
+            name="vyatta-interfaces-dataplane-v1:tagnode"><ref name="vyatta-interfaces-dataplane-v1__dataplane-ifname"/><configd-v1:help
+            text="Dataplane interface name"/><configd-v1:allowed executable="vyatta-interfaces.pl
+            --show=dataplane --filter=''\.[0-9]+''"/></element><interleave><configd-v1:priority
+            priority="318"/><configd-v1:help text="Dataplane interface name"/><configd-v1:allowed
+            executable="vyatta-interfaces.pl --show=dataplane --filter=''\.[0-9]+''"/><configd-v1:create
+            executable="vyatta-dp-interface.pl --create $VAR(@)"/><configd-v1:delete
+            executable="ip link set dev $VAR(@) down; vyatta-dp-interface.pl --delete
+            $VAR(@)"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/interfaces/dataplane/configd_validate1.cli"/><configd-v1:validate
+            executable="vyatta-interfaces.pl --dev $VAR(@) --check-vifs"/><configd-v1:end
+            executable="vyatta-intf-end $VAR(@)"/><optional><element name="vyatta-interfaces-dataplane-v1:vlan-protocol"
+            nma:default="0x8100"><interleave><choice><value>0x8100</value><value>0x88A8</value><value>0x9100</value><value>0x9200</value><value>0x9300</value></choice><configd-v1:priority
+            priority="381"/><configd-v1:help text="Vlan Tag Protocol Identifier (default:
+            0x8100)"/><configd-v1:update executable="vyatta-interfaces.pl --dev $VAR(../@)
+            --update-vlan-proto $VAR(@)"/><configd-v1:delete executable="vyatta-interfaces.pl
+            --dev $VAR(../@) --update-vlan-proto 0x8100"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:mtu" nma:default="1500"><interleave><data
+            type="unsignedInt"><param name="minInclusive">68</param><param name="maxInclusive">9000</param></data><configd-v1:priority
+            priority="381"/><configd-v1:help text="Maximum Transmission Unit (MTU)"/><configd-v1:update
+            executable="ip link set $VAR(../@) mtu $VAR(@)"/><configd-v1:delete executable="ip
+            link set $VAR(../@) mtu 1500"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:description"><interleave><data type="string"/><configd-v1:help
+            text="Interface Description"/><configd-v1:update executable="ip li set
+            dev $VAR(../@) alias ''$VAR(@)''"/><configd-v1:delete executable="echo
+            '''' &gt;/sys/class/net/$VAR(../@)/ifalias"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:disable"><interleave><configd-v1:help
+            text="Disable interface"/><configd-v1:create executable="ip link set $VAR(../@)
+            down"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:disable-link-detect"><interleave><configd-v1:help
+            text="Ignore link state changes"/><configd-v1:create executable="vyatta-link-detect
+            $VAR(../@) off"/><configd-v1:delete executable="vyatta-link-detect $VAR(../@)
+            on"/></interleave></element></optional><optional><element nma:implicit="true"
+            name="vyatta-interfaces-dataplane-v1:ip"><interleave><configd-v1:help
+            text="IPv4 parameters"/><optional><element name="vyatta-interfaces-dataplane-v1:enable-proxy-arp"><interleave><configd-v1:help
+            text="Enable proxy-arp on this interface"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../@)/proxy_arp=1"/><configd-v1:delete executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../@)/proxy_arp=0"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:rpf-check" nma:default="disable"><interleave><choice><value>disable</value><value>strict</value><value>loose</value></choice><configd-v1:help
+            text="Reverse path filter policy (see RFC3704)"/><configd-v1:update executable="set-rpf-check
+            $VAR(@) $VAR(../../@)"/><configd-v1:delete executable="set-rpf-check disable
+            $VAR(../../@)"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:gratuitous-arp-count"
+            nma:default="1"><interleave><data type="unsignedInt"><param name="minInclusive">0</param><param
+            name="maxInclusive">10</param></data><configd-v1:help text="# of unsolicited
+            arps sent on link up (0 to disable)"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:disable-forwarding"><interleave><configd-v1:help
+            text="Disable IPv4 forwarding on this interface"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../@)/forwarding=0"/><configd-v1:delete executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../@)/forwarding=1"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:ipv6"><configd-v1:help text="IPv6
+            parameters"/></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:log_martians"><interleave><configd-v1:help
+            text="Enable the logging of bogus packets"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../@)/log_martians=1"/><configd-v1:delete executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../@)/log_martians=0"/></interleave></element></optional><zeroOrMore><element
+            nma:key="vyatta-interfaces-dataplane-v1:tagnode" name="vyatta-interfaces-dataplane-v1:vif"><nma:unique
+            tag="vyatta-interfaces-dataplane-v1:vlan vyatta-interfaces-dataplane-v1:inner-vlan"/><element
+            name="vyatta-interfaces-dataplane-v1:tagnode"><data type="unsignedInt"><param
+            name="minInclusive">1</param><param name="maxInclusive">99999</param></data><configd-v1:help
+            text="Virtual Interface (VIF) ID"/></element><interleave><configd-v1:priority
+            priority="319"/><configd-v1:help text="Virtual Interface (VIF) ID"/><configd-v1:create
+            executable="vyatta-interfaces.pl --dev $VAR(../@) --create-vif $VAR(@)"/><configd-v1:delete
+            executable="vyatta-interfaces.pl --dev $VAR(../@) --delete-vif $VAR(@)"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/interfaces/dataplane/vif/configd_validate1.cli"/><configd-v1:end
+            executable="vyatta-intf-end $VAR(../@).$VAR(@)"/><optional><element name="vyatta-interfaces-dataplane-v1:vlan"><interleave><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">4094</param></data><configd-v1:help
+            text="Virtual Local Area Network (VLAN) ID"/><configd-v1:update executable="vyatta-interfaces.pl
+            --dev $VAR(../../@) --update-vif $VAR(../@) --update-vlan"/><configd-v1:delete
+            executable="vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@)
+            --delete-vlan"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:inner-vlan"><interleave><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">4094</param></data><configd-v1:help
+            text="Virtual Local Area Network (VLAN) ID"/><configd-v1:update executable="vyatta-interfaces.pl
+            --dev $VAR(../../@) --update-vif $VAR(../@) --update-ivlan"/><configd-v1:delete
+            executable="vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@)
+            --del-ivlan"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:disable-link-detect"><interleave><configd-v1:help
+            text="Ignore link state changes"/><configd-v1:create executable="vyatta-link-detect
+            $VAR(../@) off"/><configd-v1:delete executable="vyatta-link-detect $VAR(../@)
+            on"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:description"><interleave><data
+            type="string"/><configd-v1:help text="Interface Description"/><configd-v1:update
+            executable="ip li set dev $VAR(../../@).$VAR(../@) alias ''$VAR(@)''"/><configd-v1:delete
+            executable="echo '''' &gt;/sys/class/net/$VAR(../../@).$VAR(../@)/ifalias"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:disable"><interleave><configd-v1:help
+            text="Disable interface"/><configd-v1:create executable="ip link set $VAR(../../@).$VAR(../@)
+            down"/></interleave></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:log_martians"><interleave><configd-v1:help
+            text="Enable the logging of bogus packets"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../@).$VAR(../@)/log_martians=1"/><configd-v1:delete
+            executable="sysctl -wq /net/ipv4/conf/$VAR(../../@).$VAR(../@)/log_martians=0"/></interleave></element></optional><optional><element
+            nma:implicit="true" name="vyatta-interfaces-dataplane-v1:ip"><interleave><configd-v1:help
+            text="IPv4 parameters"/><optional><element name="vyatta-interfaces-dataplane-v1:disable-forwarding"><interleave><configd-v1:help
+            text="Disable IPv4 forwarding on this interface"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/forwarding=0"/><configd-v1:delete
+            executable="sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/forwarding=1"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:enable-proxy-arp"><interleave><configd-v1:help
+            text="Enable proxy-arp on this interface"/><configd-v1:create executable="sysctl
+            -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/proxy_arp=1"/><configd-v1:delete
+            executable="sysctl -wq /net/ipv4/conf/$VAR(../../../@).$VAR(../../@)/proxy_arp=0"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:rpf-check" nma:default="disable"><interleave><choice><value>disable</value><value>strict</value><value>loose</value></choice><configd-v1:help
+            text="Reverse path filter policy (see RFC3704)"/><configd-v1:update executable="set-rpf-check
+            $VAR(@) $VAR(../../../@).$VAR(../../@)"/><configd-v1:delete executable="set-rpf-check
+            disable $VAR(../../../@).$VAR(../../@)"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:ipv6"><configd-v1:help text="IPv6
+            parameters"/></element></optional><optional><element name="vyatta-interfaces-dataplane-v1:mtu"><interleave><data
+            type="unsignedInt"><param name="minInclusive">68</param><param name="maxInclusive">9000</param></data><configd-v1:priority
+            priority="382"/><configd-v1:help text="Maximum Transmission Unit (MTU)"/><configd-v1:update
+            executable="vyatta-interfaces.pl --dev $VAR(../../@) --update-vif $VAR(../@)
+            --set-mtu $VAR(@)"/><configd-v1:delete executable="vyatta-interfaces.pl
+            --dev $VAR(../../@) --update-vif $VAR(../@) --del-mtu 1500"/></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-dataplane-v1:address" nma:ordered-by="user"><interleave><ref
+            name="vyatta-interfaces-v1__address-dhcp"/><configd-v1:help text="IP address"/><configd-v1:create
+            executable="vyatta-address add $VAR(../../@).$VAR(../@) $VAR(@)"/><configd-v1:allowed
+            executable="echo ''dhcp dhcpv6 &lt;&gt;''"/></interleave></element></zeroOrMore></interleave></element></zeroOrMore><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-dataplane-v1:address" nma:ordered-by="user"><interleave><ref
+            name="vyatta-interfaces-v1__address-dhcp"/><configd-v1:help text="IP address"/><configd-v1:create
+            executable="vyatta-address add $VAR(../@) $VAR(@)"/><configd-v1:allowed
+            executable="echo ''dhcp dhcpv6 &lt;&gt;''"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-dataplane-v1:mac"><interleave><ref name="vyatta-types-v1__mac-address"/><configd-v1:help
+            text="Media Access Control (MAC) address"/><configd-v1:create executable="ip
+            link set $VAR(../@) address $VAR(@)"/><configd-v1:delete executable="ip
+            link set $VAR(../@) address `ethtool -P $VAR(../@) | awk ''{print $3}''`"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-dataplane-v1:cpu-affinity"><interleave><ref name="vyatta-types-v1__cpu-range"/><configd-v1:help
+            text="Interface CPU affinity"/><configd-v1:update executable="vplane-affinity
+            --dev=$VAR(../@) --set $VAR(@)"/><configd-v1:delete executable="vplane-affinity
+            --dev=$VAR(../@) --delete"/></interleave></element></optional></interleave></element></zeroOrMore><zeroOrMore><element
+            nma:key="vyatta-interfaces-openvpn-v1:tagnode" name="vyatta-interfaces-openvpn-v1:openvpn"><element
+            name="vyatta-interfaces-openvpn-v1:tagnode"><data type="string"><param
+            name="pattern">vtun[0-9]+</param></data><configd-v1:help text="OpenVPN
+            tunnel interface name"/></element><interleave><configd-v1:priority priority="460"/><configd-v1:help
+            text="OpenVPN tunnel interface name"/><configd-v1:end executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/configd_end.sh"/><optional><element
+            name="vyatta-interfaces-openvpn-v1:client-cert-not-required"><interleave><configd-v1:help
+            text="Client certificates not required"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/client-cert-not-required/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:auth"><interleave><configd-v1:help
+            text="OpenVPN authentication method"/><configd-v1:end executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/configd_end.sh"/><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:ldap" nma:ordered-by="user"><interleave><data
+            type="string"/><configd-v1:help text="Service-User LDAP profile name"/><configd-v1:allowed
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/ldap/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/ldap/configd_validate1.cli"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-openvpn-v1:local"><interleave><configd-v1:help
+            text="Local Service User Authentication"/><zeroOrMore><element nma:leaf-list="true"
+            name="vyatta-interfaces-openvpn-v1:group" nma:ordered-by="user"><interleave><data
+            type="string"/><configd-v1:help text="Service-user group name"/><configd-v1:allowed
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/local/group/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/local/group/configd_validate1.cli"/></interleave></element></zeroOrMore><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:user" nma:ordered-by="user"><interleave><data
+            type="string"/><configd-v1:help text="Service User"/><configd-v1:allowed
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/local/user/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/auth/local/user/configd_validate1.cli"/></interleave></element></zeroOrMore></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:description"><interleave><data type="string"/><configd-v1:help
+            text="Description for the interface"/><configd-v1:delete executable="/opt/vyatta/share/tmplscripts/interfaces/openvpn/description/configd_delete.sh"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:local-host"><interleave><ref name="vyatta-types-v1__ipv4-address"/><configd-v1:help
+            text="Local IP address to accept connections (all if not set)"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:hash"><interleave><choice><value>md5</value><value>sha1</value><value>sha256</value><value>sha512</value></choice><configd-v1:help
+            text="Hashing algorithm option"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:disable"><configd-v1:help text="Interface
+            to be disabled"/></element></optional><optional><element name="vyatta-interfaces-openvpn-v1:server"><interleave><configd-v1:help
+            text="Server-mode options"/><zeroOrMore><element nma:key="vyatta-interfaces-openvpn-v1:tagnode"
+            name="vyatta-interfaces-openvpn-v1:client"><element name="vyatta-interfaces-openvpn-v1:tagnode"><data
+            type="string"/><configd-v1:help text="Client-specific settings"/></element><interleave><configd-v1:help
+            text="Client-specific settings"/><optional><element name="vyatta-interfaces-openvpn-v1:ip"><interleave><ref
+            name="vyatta-types-v1__ipv4-address"/><configd-v1:help text="IP address
+            of the client"/></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:subnet" nma:ordered-by="user"><interleave><ref
+            name="vyatta-types-v1__ipv4-prefix"/><configd-v1:help text="Subnet belonging
+            to the client"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-openvpn-v1:disable"><configd-v1:help text="Option
+            to disable client connection"/></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:push-route" nma:ordered-by="user"><interleave><ref
+            name="vyatta-types-v1__ipv4-prefix"/><configd-v1:help text="Route to be
+            pushed to the client"/></interleave></element></zeroOrMore></interleave></element></zeroOrMore><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:name-server" nma:ordered-by="user"><interleave><ref
+            name="vyatta-types-v1__ipv4-address"/><configd-v1:help text="Domain Name
+            Server (DNS)"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-openvpn-v1:subnet"><interleave><ref name="vyatta-types-v1__ipv4-prefix"/><configd-v1:help
+            text="Server-mode subnet (from which client IPs are allocated)"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:max-connections"><interleave><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">4096</param></data><configd-v1:help
+            text="Number of maximum client connections"/></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:push-route" nma:ordered-by="user"><interleave><ref
+            name="vyatta-types-v1__ipv4-prefix"/><configd-v1:help text="Route to be
+            pushed to all clients"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-openvpn-v1:topology"><interleave><choice><value>point-to-point</value><value>subnet</value></choice><configd-v1:help
+            text="Topology for clients"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:domain-name"><interleave><data type="string"/><configd-v1:help
+            text="DNS suffix to be pushed to all clients"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:device-type"><interleave><data type="string"/><configd-v1:help
+            text="OpenVPN interface device-type"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:shared-secret-key-file"><interleave><data
+            type="string"/><configd-v1:help text="File containing the secret key shared
+            with remote end of tunnel"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:encryption"><interleave><choice><value>des</value><value>3des</value><value>bf128</value><value>bf256</value><value>aes128</value><value>aes192</value><value>aes256</value></choice><configd-v1:help
+            text="Data encryption algorithm option"/></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:remote-host" nma:ordered-by="user"><interleave><data
+            type="string"/><configd-v1:help text="Remote host to connect to (dynamic
+            if not set)"/></interleave></element></zeroOrMore><optional><element name="vyatta-interfaces-openvpn-v1:remote-port"><interleave><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">65535</param></data><configd-v1:help
+            text="Remote port number to connect to"/></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-interfaces-openvpn-v1:openvpn-option"
+            nma:ordered-by="user"><interleave><data type="string"/><configd-v1:help
+            text="Additional OpenVPN options"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-interfaces-openvpn-v1:local-address"><interleave><data type="string"/><configd-v1:help
+            text="Local IP address or network address"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:remote-address"><interleave><ref name="vyatta-types-v1__ipv4-address"/><configd-v1:help
+            text="IP address of remote end of tunnel"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:tls"><interleave><configd-v1:help text="Transport
+            Layer Security (TLS) options"/><optional><element name="vyatta-interfaces-openvpn-v1:dh-file"><interleave><data
+            type="string"/><configd-v1:help text="File containing Diffie Hellman parameters
+            (server only)"/></interleave></element></optional><optional><element name="vyatta-interfaces-openvpn-v1:role"><interleave><choice><value>active</value><value>passive</value></choice><configd-v1:help
+            text="Role in TLS negotiation"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:ca-cert-file"><interleave><data type="string"/><configd-v1:help
+            text="File containing certificate for Certificate Authority (CA)"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:cert-file"><interleave><data type="string"/><configd-v1:help
+            text="File containing certificate for this host"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:key-file"><interleave><data type="string"/><configd-v1:help
+            text="File containing this host''s private key"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:crl-file"><interleave><data type="string"/><configd-v1:help
+            text="File containing certificate revocation list (CRL) for this host"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:mode"><interleave><choice><value>site-to-site</value><value>client</value><value>server</value></choice><configd-v1:help
+            text="OpenVPN mode of operation"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:replace-default-route"><interleave><configd-v1:help
+            text="OpenVPN tunnel to be used as the default route"/><optional><element
+            name="vyatta-interfaces-openvpn-v1:local"><configd-v1:help text="Tunnel
+            endpoints are on the same subnet"/></element></optional></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:protocol"><interleave><choice><value>udp</value><value>tcp-passive</value><value>tcp-active</value></choice><configd-v1:help
+            text="OpenVPN communication protocol"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:local-port"><interleave><data type="unsignedInt"><param
+            name="minInclusive">1</param><param name="maxInclusive">65535</param></data><configd-v1:help
+            text="Local port number to accept connections"/></interleave></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:ip"><configd-v1:help text="IPv4 parameters"/></element></optional><optional><element
+            name="vyatta-interfaces-openvpn-v1:ipv6"><configd-v1:help text="IPv6 parameters"/></element></optional></interleave></element></zeroOrMore></interleave></element></optional></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-system-v1" ns="urn:vyatta.com:mgmt:vyatta-system:1"><dc:source>YANG
+            module ''vyatta-system-v1'' revision 2015-08-05</dc:source><start><nma:data><optional><element
+            nma:implicit="true" name="vyatta-system-v1:system"><interleave><configd-v1:help
+            text="System parameters"/><optional><element name="vyatta-system-network-v1:domain-name"><interleave><ref
+            name="vyatta-types-v1__domain-name"/><configd-v1:priority priority="400"/><configd-v1:help
+            text="System domain name"/><configd-v1:update executable="/opt/vyatta/share/tmplscripts/system/domain-name/configd_update.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/domain-name/configd_delete.sh"/></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:domain-search"><interleave><configd-v1:priority
+            priority="400"/><configd-v1:help text="Domain Name Server (DNS) domain
+            completion order"/><zeroOrMore><element nma:leaf-list="true" name="vyatta-system-network-v1:domain"
+            nma:ordered-by="user"><interleave><data type="string"><param name="pattern">[-a-zA-Z0-9\.]+</param></data><configd-v1:help
+            text="DNS domain completion order"/><configd-v1:create executable="/opt/vyatta/share/tmplscripts/system/domain-search/domain/configd_create1.cli"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/domain-search/domain/configd_delete1.cli"/></interleave></element></zeroOrMore></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:host-name" nma:default="vyatta"><interleave><data
+            type="string"><param name="pattern">[0-9A-Za-z][-\.0-9A-Za-z]*[0-9A-Za-z]</param><param
+            name="minLength">2</param><param name="maxLength">63</param></data><configd-v1:priority
+            priority="100"/><configd-v1:help text="System host name (default: vyatta)"/><configd-v1:update
+            executable="/opt/vyatta/share/tmplscripts/system/host-name/configd_update.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/host-name/configd_delete.sh"/></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:ip"><interleave><configd-v1:priority priority="400"/><configd-v1:help
+            text="IPv4 settings"/><optional><element name="vyatta-system-network-v1:arp"><configd-v1:help
+            text="Parameters for ARP cache"/></element></optional><optional><element
+            name="vyatta-system-network-v1:disable-forwarding"><interleave><configd-v1:help
+            text="Disable IPv4 forwarding"/><configd-v1:create executable="/opt/vyatta/share/tmplscripts/system/ip/disable-forwarding/configd_create.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/ip/disable-forwarding/configd_delete.sh"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:ipv6"><interleave><configd-v1:help text="IPv6
+            settings"/><optional><element name="vyatta-system-network-v1:disable"><interleave><configd-v1:priority
+            priority="400"/><configd-v1:help text="Disable assignment of IPv6 addresses
+            on all interfaces"/><configd-v1:create executable="vyatta-ipv6-disable
+            create"/><configd-v1:delete executable="vyatta-ipv6-disable delete"/></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:strict-dad"><interleave><configd-v1:priority
+            priority="290"/><configd-v1:help text="Disable IPv6 operation on interface
+            when DAD fails on LL addr"/><configd-v1:create executable="/opt/vyatta/share/tmplscripts/system/ipv6/strict-dad/configd_create.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/ipv6/strict-dad/configd_delete.sh"/></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:neighbor"><interleave><configd-v1:priority
+            priority="400"/><configd-v1:help text="Parameters for Neighbor cache"/><optional><element
+            name="vyatta-system-network-v1:table-size" nma:default="8192"><interleave><choice><value>1024</value><value>2048</value><value>4096</value><value>8192</value><value>16384</value><value>32768</value></choice><configd-v1:help
+            text="Maximum number of entries to keep in the Neighbor cache"/><configd-v1:allowed
+            executable="/opt/vyatta/share/tmplscripts/system/ipv6/neighbor/table-size/configd_allowed.sh"/><configd-v1:update
+            executable="/opt/vyatta/share/tmplscripts/system/ipv6/neighbor/table-size/configd_update.sh"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-system-network-v1:disable-forwarding"><interleave><configd-v1:priority
+            priority="400"/><configd-v1:help text="Disable IPv6 forwarding on all
+            interfaces"/><configd-v1:create executable="/opt/vyatta/share/tmplscripts/system/ipv6/disable-forwarding/configd_create.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/ipv6/disable-forwarding/configd_delete.sh"/></interleave></element></optional></interleave></element></optional><zeroOrMore><element
+            nma:leaf-list="true" name="vyatta-system-network-v1:name-server" nma:ordered-by="user"><interleave><choice><ref
+            name="vyatta-types-v1__ipv4-address"/><ref name="vyatta-types-v1__ipv6-address"/></choice><configd-v1:priority
+            priority="400"/><configd-v1:help text="Domain Name Server (DNS)"/><configd-v1:create
+            executable="/opt/vyatta/share/tmplscripts/system/name-server/configd_create.sh"/><configd-v1:delete
+            executable="/opt/vyatta/share/tmplscripts/system/name-server/configd_delete.sh"/></interleave></element></zeroOrMore><optional><element
+            name="vyatta-system-network-v1:static-host-mapping"><interleave><configd-v1:priority
+            priority="400"/><configd-v1:help text="Map host names to addresses"/><zeroOrMore><element
+            nma:key="vyatta-system-network-v1:tagnode" name="vyatta-system-network-v1:host-name"><element
+            name="vyatta-system-network-v1:tagnode"><data type="string"><param name="pattern">[0-9A-Za-z][-\.0-9A-Za-z]*[0-9A-Za-z]</param></data><configd-v1:help
+            text="Host name for static address mapping"/></element><interleave><configd-v1:help
+            text="Host name for static address mapping"/><configd-v1:end executable="/opt/vyatta/share/tmplscripts/system/static-host-mapping/host-name/configd_end.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/system/static-host-mapping/host-name/configd_validate1.cli"/><optional><element
+            name="vyatta-system-network-v1:inet"><interleave><choice><ref name="vyatta-types-v1__ipv4-address"/><ref
+            name="vyatta-types-v1__ipv6-address"/></choice><configd-v1:help text="Address
+            [REQUIRED]"/></interleave></element></optional><zeroOrMore><element nma:leaf-list="true"
+            name="vyatta-system-network-v1:alias" nma:ordered-by="user"><interleave><data
+            type="string"/><configd-v1:help text="Alias for this address"/></interleave></element></zeroOrMore></interleave></element></zeroOrMore></interleave></element></optional></interleave></element></optional></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-interfaces-openvpn-v1" ns="urn:vyatta.com:mgmt:vyatta-interfaces-openvpn:1"><dc:source>YANG
+            module ''vyatta-interfaces-openvpn-v1'' revision 2015-08-14</dc:source><start><nma:data></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-services-v1" ns="urn:vyatta.com:mgmt:vyatta-services:1"><dc:source>YANG
+            module ''vyatta-services-v1'' revision 2015-08-05</dc:source><start><nma:data><optional><element
+            name="vyatta-services-v1:service"><interleave><configd-v1:help text="Services"/><optional><element
+            name="vyatta-service-nat-v1:nat"><interleave><configd-v1:priority priority="310"/><configd-v1:help
+            text="Network Address Translation (NAT)"/><configd-v1:end executable="/opt/vyatta/share/tmplscripts/service/nat/configd_end.sh"/><optional><element
+            name="vyatta-service-nat-v1:ipv6-to-ipv4"><interleave><configd-v1:help
+            text="IPv6 to IPv4 NAT settings"/><configd-v1:end executable="vyatta-dp-npf-nat.pl
+            --type=ipv6-to-ipv4"/><zeroOrMore><element nma:key="vyatta-service-nat-v1:tagnode"
+            name="vyatta-service-nat-v1:rule"><element name="vyatta-service-nat-v1:tagnode"><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">9999</param></data></element><interleave><configd-v1:help
+            text="Rule number for NAT"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/service/nat/ipv6-to-ipv4/rule/configd_validate1.cli"/><optional><element
+            name="vyatta-service-nat-v1:inbound-interface"><interleave><data type="string"/><configd-v1:allowed
+            executable="vyatta-interfaces.pl --show dataplane,bonding"/><configd-v1:help
+            text="Interface to initiate a IPv6 to IPv4 session"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:source"><interleave><configd-v1:help text="Source
+            IPv6 prefix"/><optional><element name="vyatta-service-nat-v1:prefix"><interleave><configd-v1:help
+            text="Source IPv6 prefix [supported prefixes are 32,40,48,56,64 and 96]"/><ref
+            name="vyatta-types-v1__ipv6-prefix"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:destination"><interleave><configd-v1:help
+            text="Destination IPv6 prefix"/><optional><element name="vyatta-service-nat-v1:prefix"><interleave><configd-v1:help
+            text="Destination IPv6 prefix [supported prefixes are 32,40,48,56,64 and
+            96]"/><ref name="vyatta-types-v1__ipv6-prefix"/></interleave></element></optional></interleave></element></optional></interleave></element></zeroOrMore></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:source"><interleave><configd-v1:help text="Source
+            NAT settings"/><configd-v1:end executable="vyatta-dp-npf-nat.pl --type=source"/><zeroOrMore><element
+            nma:key="vyatta-service-nat-v1:tagnode" name="vyatta-service-nat-v1:rule"><element
+            name="vyatta-service-nat-v1:tagnode"><data type="unsignedInt"><param name="minInclusive">1</param><param
+            name="maxInclusive">9999</param></data><configd-v1:help text="Rule number
+            for NAT"/></element><interleave><configd-v1:help text="Rule number for
+            NAT"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/configd_validate0.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/configd_validate1.cli"/><optional><element
+            name="vyatta-service-nat-v1:description"><interleave><data type="string"/><configd-v1:help
+            text="Rule description"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:exclude"><interleave><configd-v1:help text="Exclude
+            from NAT"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/exclude/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:disable"><configd-v1:help text="Disable NAT
+            rule"/></element></optional><optional><element name="vyatta-service-nat-v1:source"><interleave><configd-v1:help
+            text="NAT source parameters"/><optional><element name="vyatta-service-nat-v1:address"><interleave><data
+            type="string"/><configd-v1:help text="Source IPv4 address, subnet, or
+            address-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/source/address/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/source/address/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Source port or port-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/source/port/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/source/port/configd_validate1.cli"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:log"><configd-v1:help text="Enable logging
+            for NAT rule"/></element></optional><optional><element name="vyatta-service-nat-v1:destination"><interleave><configd-v1:help
+            text="NAT destination parameters"/><optional><element name="vyatta-service-nat-v1:address"><interleave><data
+            type="string"/><configd-v1:help text="Destination IPv4 address, subnet,
+            or address-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/destination/address/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/destination/address/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Destination port or port-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/destination/port/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/destination/port/configd_validate1.cli"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:translation"><interleave><configd-v1:help
+            text="Outside NAT IP (used by source NAT only)"/><optional><element name="vyatta-service-nat-v1:address"><interleave><data
+            type="string"/><configd-v1:help text="Translated IP address or range"/><configd-v1:allowed
+            executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/translation/address/configd_allowed.sh"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Translated port"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:outbound-interface"><interleave><data type="string"/><configd-v1:help
+            text="Outbound interface for NAT traffic"/><configd-v1:allowed executable="vyatta-interfaces.pl
+            --show dataplane,bonding"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:protocol"><interleave><data type="string"/><configd-v1:help
+            text="Protocol to NAT"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/source/rule/protocol/configd_allowed.sh"/></interleave></element></optional></interleave></element></zeroOrMore></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:destination"><interleave><configd-v1:help
+            text="Destination NAT settings"/><configd-v1:end executable="vyatta-dp-npf-nat.pl
+            --type=destination"/><zeroOrMore><element nma:key="vyatta-service-nat-v1:tagnode"
+            name="vyatta-service-nat-v1:rule"><element name="vyatta-service-nat-v1:tagnode"><data
+            type="unsignedInt"><param name="minInclusive">1</param><param name="maxInclusive">9999</param></data><configd-v1:help
+            text="Rule number for NAT"/></element><interleave><configd-v1:help text="Rule
+            number for NAT"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/configd_validate0.sh"/><optional><element
+            name="vyatta-service-nat-v1:description"><interleave><data type="string"/><configd-v1:help
+            text="Rule description"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:exclude"><interleave><configd-v1:help text="Exclude
+            from NAT"/><configd-v1:validate executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/exclude/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:disable"><configd-v1:help text="Disable NAT
+            rule"/></element></optional><optional><element name="vyatta-service-nat-v1:inbound-interface"><interleave><data
+            type="string"/><configd-v1:help text="Inbound interface of NAT traffic"/><configd-v1:allowed
+            executable="vyatta-interfaces.pl --show dataplane,bonding"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:source"><interleave><configd-v1:help text="NAT
+            source parameters"/><optional><element name="vyatta-service-nat-v1:address"><interleave><data
+            type="string"/><configd-v1:help text="Source IPv4 address, subnet, or
+            address-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/source/address/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/source/address/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Source port or port-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/source/port/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/source/port/configd_validate1.cli"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:log"><configd-v1:help text="Enable logging
+            for NAT rule"/></element></optional><optional><element name="vyatta-service-nat-v1:destination"><interleave><configd-v1:help
+            text="NAT destination parameters"/><optional><element name="vyatta-service-nat-v1:address"><interleave><data
+            type="string"/><configd-v1:help text="Destination IPv4 address, subnet,
+            or address-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/destination/address/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/destination/address/configd_validate1.cli"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Destination port or port-group"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/destination/port/configd_allowed.sh"/><configd-v1:validate
+            executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/destination/port/configd_validate1.cli"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:translation"><interleave><configd-v1:help
+            text="Inside NAT IP (used by destination NAT only)"/><optional><element
+            name="vyatta-service-nat-v1:address"><interleave><data type="string"/><configd-v1:help
+            text="Translated IP address or range"/></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:port"><interleave><data type="string"/><configd-v1:help
+            text="Translated port"/></interleave></element></optional></interleave></element></optional><optional><element
+            name="vyatta-service-nat-v1:protocol"><interleave><data type="string"/><configd-v1:help
+            text="Protocol to NAT"/><configd-v1:allowed executable="/opt/vyatta/share/tmplscripts/service/nat/destination/rule/protocol/configd_allowed.sh"/></interleave></element></optional></interleave></element></zeroOrMore></interleave></element></optional></interleave></element></optional></interleave></element></optional></nma:data><nma:rpcs/><nma:notifications/></start></grammar><grammar
+            nma:module="vyatta-service-nat-v1" ns="urn:vyatta.com:mgmt:vyatta-service-nat:1"><dc:source>YANG
+            module ''vyatta-service-nat-v1'' revision 2015-09-29</dc:source><start><nma:data></nma:data><nma:rpcs/><nma:notifications/></start></grammar></start><define
+            name="vyatta-types-v1__domain-name"><data type="string"><param name="pattern">([a-zA-Z0-9](([a-zA-Z0-9\-]){0,61})?[a-zA-Z0-9])(\.[a-zA-z0-9](([a-zA-Z0-9\-]){0,61})?[a-zA-Z0-9])*</param><param
+            name="minLength">1</param><param name="maxLength">253</param></data></define><define
+            name="vyatta-interfaces-dataplane-v1__dataplane-ifname"><choice><data
+            type="string"><param name="pattern">dp[0-9]+o[0-9]+(d[0-9]+)?</param></data><data
+            type="string"><param name="pattern">dp[0-9]+s[0-9]+(f[0-9]+)?(d[0-9]+)?</param></data><data
+            type="string"><param name="pattern">dp[0-9]+(P[0-9]+)?p[0-9]{1,3}s[0-9]{1,3}(f[0-9]+)?(d[0-9]+)?</param></data><data
+            type="string"><param name="pattern">dp[0-9]+p[0-9]+p[0-9]+</param></data></choice></define><define
+            name="vyatta-interfaces-v1__address"><choice><ref name="vyatta-types-v1__ipv4-prefix"/><ref
+            name="vyatta-types-v1__ipv6-prefix"/><configd-v1:normalize executable="normalize
+            ip"/></choice></define><define name="vyatta-types-v1__ipv6-prefix"><data
+            type="string"><param name="pattern">((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(/(([0-9])|([0-9]{2})|(1[0-1][0-9])|(12[0-8])))</param><param
+            name="pattern">(([^:]+:){6}(([^:]+:[^:]+)|(.*\..*)))|((([^:]+:)*[^:]+)?::(([^:]+:)*[^:]+)?)(/.+)</param></data></define><define
+            name="ietf-inet-types__ipv6-address"><data type="string"><param name="pattern">((:|[0-9a-fA-F]{0,4}):)([0-9a-fA-F]{0,4}:){0,5}((([0-9a-fA-F]{0,4}:)?(:|[0-9a-fA-F]{0,4}))|(((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])))(%[\p{N}\p{L}]+)?</param><param
+            name="pattern">(([^:]+:){6}(([^:]+:[^:]+)|(.*\..*)))|((([^:]+:)*[^:]+)?::(([^:]+:)*[^:]+)?)(%.+)?</param></data></define><define
+            name="vyatta-types-v1__ipv6-address"><ref name="ietf-inet-types__ipv6-address"/></define><define
+            name="vyatta-types-v1__ipv4-prefix"><data type="string"><param name="pattern">(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])/(([0-9])|([1-2][0-9])|(3[0-2]))</param></data></define><define
+            name="vyatta-interfaces-v1__address-dhcp"><choice><choice><value>dhcp</value><value>dhcpv6</value></choice><ref
+            name="vyatta-interfaces-v1__address"/><configd-v1:normalize executable="normalize
+            ip"/></choice></define><define name="ietf-yang-types__mac-address"><data
+            type="string"><param name="pattern">[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}</param></data></define><define
+            name="vyatta-types-v1__ipv4-address"><ref name="ietf-inet-types__ipv4-address"/></define><define
+            name="vyatta-types-v1__cpu-range"><data type="string"><param name="pattern">[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*</param></data></define><define
+            name="ietf-inet-types__ipv4-address"><data type="string"><param name="pattern">(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(%[\p{N}\p{L}]+)?</param></data></define><define
+            name="vyatta-types-v1__mac-address"><ref name="ietf-yang-types__mac-address"/></define></grammar>'
           modules:
             vyatta-interfaces-dataplane-v1: '2015-11-23'
+            vyatta-interfaces-openvpn-v1: '2015-08-14'
             vyatta-interfaces-v1: '2015-08-05'
+            vyatta-service-nat-v1: '2015-09-29'
+            vyatta-services-v1: '2015-08-05'
+            vyatta-system-network-v1: '2015-08-14'
+            vyatta-system-v1: '2015-08-05'
           xmlns:
-            _: urn:vyatta.com:mgmt:vyatta-interfaces:1
+            vyatta-if-v1: urn:vyatta.com:mgmt:vyatta-interfaces:1
             vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta-interfaces-openvpn-v1: urn:vyatta.com:mgmt:vyatta-interfaces-openvpn:1
+            vyatta-service-nat-v1: urn:vyatta.com:mgmt:vyatta-service-nat:1
+            vyatta-services-v1: urn:vyatta.com:mgmt:vyatta-services:1
+            vyatta-system-network-v1: urn:vyatta.com:mgmt:vyatta-system-network:1
+            vyatta-system-v1: urn:vyatta.com:mgmt:vyatta-system:1
+      rpc:
+        required: false
+        type: _rpc
 
 #module: vyatta-interfaces-v1
 #   +--rw interfaces
 #      +--rw vyatta-interfaces-dataplane-v1:dataplane* [tagnode]
-#         +--rw vyatta-interfaces-dataplane-v1:tagnode                dataplane-ifname
-#         +--rw vyatta-interfaces-dataplane-v1:vlan-protocol?         enumeration
-#         +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
-#         +--rw vyatta-interfaces-dataplane-v1:description?           string
-#         +--rw vyatta-interfaces-dataplane-v1:disable?               empty
-#         +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
-#         +--rw vyatta-interfaces-dataplane-v1:ip
-#         |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?       empty
-#         |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?              enumeration
-#         |  +--rw vyatta-interfaces-dataplane-v1:gratuitous-arp-count?   uint32
-#         |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?     empty
-#         +--rw vyatta-interfaces-dataplane-v1:ipv6
-#         +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
-#         +--rw vyatta-interfaces-dataplane-v1:vif* [tagnode]
-#         |  +--rw vyatta-interfaces-dataplane-v1:tagnode                uint32
-#         |  +--rw vyatta-interfaces-dataplane-v1:vlan?                  uint32
-#         |  +--rw vyatta-interfaces-dataplane-v1:inner-vlan?            uint32
-#         |  +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
-#         |  +--rw vyatta-interfaces-dataplane-v1:description?           string
-#         |  +--rw vyatta-interfaces-dataplane-v1:disable?               empty
-#         |  +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
-#         |  +--rw vyatta-interfaces-dataplane-v1:ip
-#         |  |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?   empty
-#         |  |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?     empty
-#         |  |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?            enumeration
-#         |  +--rw vyatta-interfaces-dataplane-v1:ipv6
-#         |  +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
-#         |  +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
-#         +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
-#         +--rw vyatta-interfaces-dataplane-v1:mac?                   types:mac-address
-#         +--rw vyatta-interfaces-dataplane-v1:cpu-affinity?          types:cpu-range
+#      |  +--rw vyatta-interfaces-dataplane-v1:tagnode                dataplane-ifname
+#      |  +--rw vyatta-interfaces-dataplane-v1:vlan-protocol?         enumeration
+#      |  +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
+#      |  +--rw vyatta-interfaces-dataplane-v1:description?           string
+#      |  +--rw vyatta-interfaces-dataplane-v1:disable?               empty
+#      |  +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
+#      |  +--rw vyatta-interfaces-dataplane-v1:ip
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?       empty
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?              enumeration
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:gratuitous-arp-count?   uint32
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?     empty
+#      |  +--rw vyatta-interfaces-dataplane-v1:ipv6
+#      |  +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
+#      |  +--rw vyatta-interfaces-dataplane-v1:vif* [tagnode]
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:tagnode                uint32
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:vlan?                  uint32
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:inner-vlan?            uint32
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:disable-link-detect?   empty
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:description?           string
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:disable?               empty
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:log_martians?          empty
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:ip
+#      |  |  |  +--rw vyatta-interfaces-dataplane-v1:disable-forwarding?   empty
+#      |  |  |  +--rw vyatta-interfaces-dataplane-v1:enable-proxy-arp?     empty
+#      |  |  |  +--rw vyatta-interfaces-dataplane-v1:rpf-check?            enumeration
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:ipv6
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:mtu?                   uint32
+#      |  |  +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
+#      |  +--rw vyatta-interfaces-dataplane-v1:address*               if:address-dhcp
+#      |  +--rw vyatta-interfaces-dataplane-v1:mac?                   types:mac-address
+#      |  +--rw vyatta-interfaces-dataplane-v1:cpu-affinity?          types:cpu-range
+#      +--rw vyatta-interfaces-openvpn-v1:openvpn* [tagnode]
+#         +--rw vyatta-interfaces-openvpn-v1:tagnode                     string
+#         +--rw vyatta-interfaces-openvpn-v1:client-cert-not-required?   empty
+#         +--rw vyatta-interfaces-openvpn-v1:auth!
+#         |  +--rw vyatta-interfaces-openvpn-v1:ldap*    string
+#         |  +--rw vyatta-interfaces-openvpn-v1:local!
+#         |     +--rw vyatta-interfaces-openvpn-v1:group*   string
+#         |     +--rw vyatta-interfaces-openvpn-v1:user*    string
+#         +--rw vyatta-interfaces-openvpn-v1:description?                string
+#         +--rw vyatta-interfaces-openvpn-v1:local-host?                 types:ipv4-address
+#         +--rw vyatta-interfaces-openvpn-v1:hash?                       enumeration
+#         +--rw vyatta-interfaces-openvpn-v1:disable?                    empty
+#         +--rw vyatta-interfaces-openvpn-v1:server!
+#         |  +--rw vyatta-interfaces-openvpn-v1:client* [tagnode]
+#         |  |  +--rw vyatta-interfaces-openvpn-v1:tagnode       string
+#         |  |  +--rw vyatta-interfaces-openvpn-v1:ip?           types:ipv4-address
+#         |  |  +--rw vyatta-interfaces-openvpn-v1:subnet*       types:ipv4-prefix
+#         |  |  +--rw vyatta-interfaces-openvpn-v1:disable?      empty
+#         |  |  +--rw vyatta-interfaces-openvpn-v1:push-route*   types:ipv4-prefix
+#         |  +--rw vyatta-interfaces-openvpn-v1:name-server*       types:ipv4-address
+#         |  +--rw vyatta-interfaces-openvpn-v1:subnet?            types:ipv4-prefix
+#         |  +--rw vyatta-interfaces-openvpn-v1:max-connections?   uint32
+#         |  +--rw vyatta-interfaces-openvpn-v1:push-route*        types:ipv4-prefix
+#         |  +--rw vyatta-interfaces-openvpn-v1:topology?          enumeration
+#         |  +--rw vyatta-interfaces-openvpn-v1:domain-name?       string
+#         +--rw vyatta-interfaces-openvpn-v1:device-type?                string
+#         +--rw vyatta-interfaces-openvpn-v1:shared-secret-key-file?     string
+#         +--rw vyatta-interfaces-openvpn-v1:encryption?                 enumeration
+#         +--rw vyatta-interfaces-openvpn-v1:remote-host*                string
+#         +--rw vyatta-interfaces-openvpn-v1:remote-port?                uint32
+#         +--rw vyatta-interfaces-openvpn-v1:openvpn-option*             string
+#         +--rw vyatta-interfaces-openvpn-v1:local-address?              string
+#         +--rw vyatta-interfaces-openvpn-v1:remote-address?             types:ipv4-address
+#         +--rw vyatta-interfaces-openvpn-v1:tls!
+#         |  +--rw vyatta-interfaces-openvpn-v1:dh-file?        string
+#         |  +--rw vyatta-interfaces-openvpn-v1:role?           enumeration
+#         |  +--rw vyatta-interfaces-openvpn-v1:ca-cert-file?   string
+#         |  +--rw vyatta-interfaces-openvpn-v1:cert-file?      string
+#         |  +--rw vyatta-interfaces-openvpn-v1:key-file?       string
+#         |  +--rw vyatta-interfaces-openvpn-v1:crl-file?       string
+#         +--rw vyatta-interfaces-openvpn-v1:mode?                       enumeration
+#         +--rw vyatta-interfaces-openvpn-v1:replace-default-route!
+#         |  +--rw vyatta-interfaces-openvpn-v1:local?   empty
+#         +--rw vyatta-interfaces-openvpn-v1:protocol?                   enumeration
+#         +--rw vyatta-interfaces-openvpn-v1:local-port?                 uint32
+#         +--rw vyatta-interfaces-openvpn-v1:ip
+#         +--rw vyatta-interfaces-openvpn-v1:ipv6!
+#module: vyatta-system-v1
+#   +--rw system
+#      +--rw vyatta-system-network-v1:domain-name?           types:domain-name
+#      +--rw vyatta-system-network-v1:domain-search!
+#      |  +--rw vyatta-system-network-v1:domain*   string
+#      +--rw vyatta-system-network-v1:host-name?             string
+#      +--rw vyatta-system-network-v1:ip!
+#      |  +--rw vyatta-system-network-v1:arp?                  empty
+#      |  +--rw vyatta-system-network-v1:disable-forwarding?   empty
+#      +--rw vyatta-system-network-v1:ipv6!
+#      |  +--rw vyatta-system-network-v1:disable?              empty
+#      |  +--rw vyatta-system-network-v1:strict-dad?           empty
+#      |  +--rw vyatta-system-network-v1:neighbor!
+#      |  |  +--rw vyatta-system-network-v1:table-size?   enumeration
+#      |  +--rw vyatta-system-network-v1:disable-forwarding?   empty
+#      +--rw vyatta-system-network-v1:name-server*           union
+#      +--rw vyatta-system-network-v1:static-host-mapping!
+#         +--rw vyatta-system-network-v1:host-name* [tagnode]
+#            +--rw vyatta-system-network-v1:tagnode    string
+#            +--rw vyatta-system-network-v1:inet?      union
+#            +--rw vyatta-system-network-v1:alias*     string
+#module: vyatta-services-v1
+#   +--rw service
+#      +--rw vyatta-service-nat-v1:nat!
+#         +--rw vyatta-service-nat-v1:ipv6-to-ipv4!
+#         |  +--rw vyatta-service-nat-v1:rule* [tagnode]
+#         |     +--rw vyatta-service-nat-v1:tagnode              uint32
+#         |     +--rw vyatta-service-nat-v1:inbound-interface?   string
+#         |     +--rw vyatta-service-nat-v1:source
+#         |     |  +--rw vyatta-service-nat-v1:prefix?   types:ipv6-prefix
+#         |     +--rw vyatta-service-nat-v1:destination
+#         |        +--rw vyatta-service-nat-v1:prefix?   types:ipv6-prefix
+#         +--rw vyatta-service-nat-v1:source!
+#         |  +--rw vyatta-service-nat-v1:rule* [tagnode]
+#         |     +--rw vyatta-service-nat-v1:tagnode               uint32
+#         |     +--rw vyatta-service-nat-v1:description?          string
+#         |     +--rw vyatta-service-nat-v1:exclude?              empty
+#         |     +--rw vyatta-service-nat-v1:disable?              empty
+#         |     +--rw vyatta-service-nat-v1:source!
+#         |     |  +--rw vyatta-service-nat-v1:address?   string
+#         |     |  +--rw vyatta-service-nat-v1:port?      string
+#         |     +--rw vyatta-service-nat-v1:log?                  empty
+#         |     +--rw vyatta-service-nat-v1:destination!
+#         |     |  +--rw vyatta-service-nat-v1:address?   string
+#         |     |  +--rw vyatta-service-nat-v1:port?      string
+#         |     +--rw vyatta-service-nat-v1:translation!
+#         |     |  +--rw vyatta-service-nat-v1:address?   string
+#         |     |  +--rw vyatta-service-nat-v1:port?      string
+#         |     +--rw vyatta-service-nat-v1:outbound-interface?   string
+#         |     +--rw vyatta-service-nat-v1:protocol?             string
+#         +--rw vyatta-service-nat-v1:destination!
+#            +--rw vyatta-service-nat-v1:rule* [tagnode]
+#               +--rw vyatta-service-nat-v1:tagnode              uint32
+#               +--rw vyatta-service-nat-v1:description?         string
+#               +--rw vyatta-service-nat-v1:exclude?             empty
+#               +--rw vyatta-service-nat-v1:disable?             empty
+#               +--rw vyatta-service-nat-v1:inbound-interface?   string
+#               +--rw vyatta-service-nat-v1:source!
+#               |  +--rw vyatta-service-nat-v1:address?   string
+#               |  +--rw vyatta-service-nat-v1:port?      string
+#               +--rw vyatta-service-nat-v1:log?                 empty
+#               +--rw vyatta-service-nat-v1:destination!
+#               |  +--rw vyatta-service-nat-v1:address?   string
+#               |  +--rw vyatta-service-nat-v1:port?      string
+#               +--rw vyatta-service-nat-v1:translation!
+#               |  +--rw vyatta-service-nat-v1:address?   string
+#               |  +--rw vyatta-service-nat-v1:port?      string
+#               +--rw vyatta-service-nat-v1:protocol?            string
 #
