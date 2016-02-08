@@ -23,5 +23,6 @@ setup(
     packages=['cloudify_netconf'],
     install_requires=[
         'cloudify-plugins-common>=3.3',
+        'lxml',
     ]
 )
