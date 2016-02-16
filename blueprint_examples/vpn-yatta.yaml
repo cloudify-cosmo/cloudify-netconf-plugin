@@ -1,0 +1,214 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.3/types.yaml
+  - vyatta-yttc-generated.yaml
+
+inputs:
+
+  netconf_ip:
+    type: string
+    description: >
+      netconf server ip
+    default: 127.0.0.1
+
+  netconf_user:
+    type: string
+    description: >
+      netconf server user
+    default: netconf
+  netconf_password:
+    type: string
+    description: >
+      netconf server user password
+    default: netconf
+
+  netconf_key_content:
+    type: string
+    description: >
+      netconf server user rsa key content, can be used instead password
+    default: ""
+
+  vpn_options:
+    type: string
+    description: >
+      addtional params for vpn
+    default: --push dhcp-option DNS 192.168.1.1
+
+  vpn_subnet:
+    type: string
+    description: >
+      vpn subnet
+    default: 192.168.1.0/24
+
+  vpn_interface:
+    type: string
+    description: >
+      vpn interface, can be any with name like vtun*, will be created
+      if not exist
+    default: vtun0
+
+  ca_cert_file:
+    type: string
+    description: >
+      preuploaded ca cert file
+      use /usr/share/doc/openvpn/examples/sample-keys/gen-sample-keys.sh
+      for generate default
+    default: /usr/share/doc/openvpn/examples/sample-keys/ca.crt
+
+  cert_file:
+    type: string
+    description: >
+      preuploaded cert file
+      use /usr/share/doc/openvpn/examples/sample-keys/gen-sample-keys.sh
+      for generate default
+    default: /usr/share/doc/openvpn/examples/sample-keys/server.crt
+
+  dh_file:
+    type: string
+    description: >
+      preuploaded dh file
+      use /usr/share/doc/openvpn/examples/sample-keys/gen-sample-keys.sh
+      for generate default
+    default: /usr/share/doc/openvpn/examples/sample-keys/dh2048.pem
+
+  key_file:
+    type: string
+    description: >
+      preuploaded key file
+      use /usr/share/doc/openvpn/examples/sample-keys/gen-sample-keys.sh
+      for generate default
+    default: /usr/share/doc/openvpn/examples/sample-keys/server.key
+
+  nat_outbound_interface:
+    type: string
+    description: >
+      internal network interface
+    default: dp0s3
+
+  nat_rule_id:
+    type: string
+    description: >
+      id for rule, must be uniq on router
+    default: 10
+
+  nat_ip:
+    type: string
+    description: >
+      ip used for nat
+    default: 172.16.10.11
+
+node_types:
+
+  vyatta-machine:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      metadata:
+        default:
+          xmlns:
+            vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta-if-v1: urn:vyatta.com:mgmt:vyatta-interfaces:1
+
+node_templates:
+
+  vyatta-impl:
+    type: vyatta-services-v1
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+      config:
+
+        vyatta-if-v1@interfaces:
+          vyatta-interfaces-openvpn-v1@openvpn:
+            vyatta-interfaces-openvpn-v1@mode: server
+            vyatta-interfaces-openvpn-v1@openvpn-option: { get_input: vpn_options}
+            vyatta-interfaces-openvpn-v1@replace-default-route: null
+            vyatta-interfaces-openvpn-v1@server:
+              vyatta-interfaces-openvpn-v1@subnet: { get_input: vpn_subnet}
+            vyatta-interfaces-openvpn-v1@tagnode: { get_input: vpn_interface}
+            vyatta-interfaces-openvpn-v1@tls:
+              vyatta-interfaces-openvpn-v1@ca-cert-file: { get_input: ca_cert_file }
+              vyatta-interfaces-openvpn-v1@cert-file: { get_input: cert_file }
+              vyatta-interfaces-openvpn-v1@dh-file: { get_input: dh_file }
+              vyatta-interfaces-openvpn-v1@key-file: { get_input: key_file }
+
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            lock:
+              - rfc6020@candidate
+            back_database: rfc6020@candidate
+            front_database: rfc6020@running
+            calls:
+
+              - action: rfc6020@edit-config
+                payload:
+                    rfc6020@config: { get_property: [ vyatta-impl, config ] }
+
+              - action: rfc6020@edit-config
+                payload:
+                  rfc6020@config:
+                      vyatta-services-v1@service:
+                        vyatta-service-nat-v1@nat:
+                          vyatta-service-nat-v1@source:
+                            vyatta-service-nat-v1@rule:
+                              vyatta-service-nat-v1@outbound-interface: { get_input: nat_outbound_interface }
+                              vyatta-service-nat-v1@source:
+                                vyatta-service-nat-v1@address: { get_input: vpn_subnet }
+                              vyatta-service-nat-v1@tagnode: { get_input: nat_rule_id }
+                              vyatta-service-nat-v1@translation:
+                                vyatta-service-nat-v1@address: { get_input: nat_ip }
+        delete:
+          inputs:
+            lock:
+              - rfc6020@candidate
+            back_database: rfc6020@candidate
+            front_database: rfc6020@running
+            calls:
+
+              - action: rfc6020@edit-config
+                payload:
+                  rfc6020@config:
+
+                    vyatta-services-v1@service:
+                      vyatta-service-nat-v1@nat:
+                        vyatta-service-nat-v1@source:
+                          vyatta-service-nat-v1@rule:
+                            vyatta-service-nat-v1@tagnode: { get_input: nat_rule_id }
+                            _@rfc6020@operation: delete
+
+                    vyatta-if-v1@interfaces:
+                      vyatta-interfaces-openvpn-v1@openvpn:
+                        _@rfc6020@operation: delete
+                        vyatta-interfaces-openvpn-v1@tagnode: { get_input: vpn_interface}
+
+
+  vyatta-back-impl:
+    type: vyatta-machine
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_user }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+      # example for validation from plugin.yaml
+      rfc6020@lock:
+        rfc6020@target:
+          rfc6020@candidate: {}
+
+      rfc6020@unlock:
+        rfc6020@target:
+          rfc6020@candidate: {}
+
+      rfc6020@copy-config:
+        rfc6020@source:
+          rfc6020@running: {}
+        rfc6020@target:
+          rfc6020@candidate: {}
