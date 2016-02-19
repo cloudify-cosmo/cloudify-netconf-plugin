@@ -111,6 +111,9 @@ class connection(object):
     def close(self, goodbye_string):
         """send xml string by link and close connection"""
         response = self.send(goodbye_string)
-        self.chan.close()
-        self.ssh.close()
+        try:
+            # sometime code can't close in time
+            self.chan.close()
+        finally:
+            self.ssh.close()
         return response

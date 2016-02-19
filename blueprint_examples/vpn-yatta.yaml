@@ -148,10 +148,16 @@ node_templates:
             calls:
 
               - action: rfc6020@edit-config
+                # we have issue with multipart modules,
+                # skip validate for now
+                validate_xml: false
                 payload:
                     rfc6020@config: { get_property: [ vyatta-impl, config ] }
 
               - action: rfc6020@edit-config
+                # we have issue with multipart modules,
+                # skip validate for now
+                validate_xml: false
                 payload:
                   rfc6020@config:
                       vyatta-services-v1@service:
@@ -173,6 +179,9 @@ node_templates:
             calls:
 
               - action: rfc6020@edit-config
+                # we have issue with multipart modules,
+                # skip validate for now
+                validate_xml: false
                 payload:
                   rfc6020@config:
 
@@ -188,27 +197,3 @@ node_templates:
                         _@rfc6020@operation: delete
                         vyatta-interfaces-openvpn-v1@tagnode: { get_input: vpn_interface}
 
-
-  vyatta-back-impl:
-    type: vyatta-machine
-    properties:
-      netconf_auth:
-        user: { get_input: netconf_user }
-        password: { get_input: netconf_user }
-        ip: { get_input: netconf_ip }
-        key_content: { get_input: netconf_key_content }
-
-      # example for validation from plugin.yaml
-      rfc6020@lock:
-        rfc6020@target:
-          rfc6020@candidate: {}
-
-      rfc6020@unlock:
-        rfc6020@target:
-          rfc6020@candidate: {}
-
-      rfc6020@copy-config:
-        rfc6020@source:
-          rfc6020@running: {}
-        rfc6020@target:
-          rfc6020@candidate: {}

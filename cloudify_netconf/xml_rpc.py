@@ -131,21 +131,33 @@ def _merge_ns(base, override):
     return new_ns
 
 
-def _gen_relaxng_with_shematron(dsdl, main_module, operation=None):
+def _gen_relaxng_with_shematron(dsdl, operation=None):
     """generate validation rules by dsdl"""
+    # call that will be called without validation
+    skiped_actions = [
+        "rfc6020@get",
+        "rfc6020@get-config",
+        "rfc6020@lock",
+        "rfc6020@unlock",
+        "rfc6020@copy-config"
+    ]
+
     rng_txt = None
     sch_txt = None
     xpath = None
     if not dsdl:
         return rng_txt, sch_txt, xpath
-    if not main_module:
-        return rng_txt, sch_txt, xpath
     if operation == "rfc6020@edit-config":
         operation_type = "config"
         xpath = "/rfc6020:rpc/rfc6020:edit-config/rfc6020:config"
-    else:
+    elif operation in skiped_actions:
         return rng_txt, sch_txt, xpath
+    else:
+        # return rng_txt, sch_txt, xpath
+        operation_type = "rpc"
+        xpath = "/rfc6020:rpc"
 
+    main_module = operation_type + "-parent"
     # search base directory
     dsdl = etree.XML(str(dsdl))
     virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
@@ -164,17 +176,25 @@ def _gen_relaxng_with_shematron(dsdl, main_module, operation=None):
 
         # save includes to file dictionary
         # will be used in reintegrate includes to validation
-        base_dict = {
-            main_module + "-gdefs-" + operation_type + ".rng": etree.XML(
-                str(transformed)
-            )
-        }
+        if operation_type == 'config':
+            base_dict = {
+                main_module + "-gdefs-" + operation_type + ".rng": etree.XML(
+                    str(transformed)
+                )
+            }
+        else:
+            base_dict = {
+                main_module + "-gdefs.rng": etree.XML(
+                    str(transformed)
+                )
+            }
 
         # validation for currect action
         transformed = transform(dsdl, **{
             "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
             "gdefs-only": "0",
-            "target": "'" + operation_type + "'"
+            "target": "'" + operation_type + "'",
+            "basename": "'" + main_module + "'"
         })
 
         # remerge everything
@@ -199,6 +219,8 @@ def _gen_relaxng_with_shematron(dsdl, main_module, operation=None):
             "target": "'config'"
         })
         sch_txt = str(transformed)
+
+    ctx.logger.info("validation: {} in {}".format(xpath, operation_type))
 
     return rng_txt, sch_txt, xpath
 
@@ -354,13 +376,19 @@ def run(**kwargs):
         # validate rpc
         rng, sch, xpath = _gen_relaxng_with_shematron(
             properties.get('metadata', {}).get('dsdl'),
-            properties.get('metadata', {}).get('module_prefix'),
             call.get('action')
         )
-        if xpath:
+
+        # try to validate
+        validate_xml = call.get('validate_xml', True)
+
+        if xpath and validate_xml:
             ctx.logger.info(
-                "We have some validation rules for " + str(xpath)
+                "We have some validation rules for '{}'".format(
+                    str(xpath)
+                )
             )
+
             utils.xml_validate(
                 parent, xmlns, xpath, rng, sch
             )

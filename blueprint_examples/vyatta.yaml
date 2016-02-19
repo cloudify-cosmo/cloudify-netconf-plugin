@@ -91,6 +91,9 @@ node_templates:
                 save_to: origin_interfaces
 
               - action: rfc6020@edit-config
+                # we have issue with multipart modules,
+                # skip validate for now
+                validate_xml: false
                 payload:
                     rfc6020@config: { get_property: [ vyatta-impl, config ] }
                     # you can skip this part if you have 'back_database'
@@ -98,6 +101,9 @@ node_templates:
                     #  candidate: null
 
               - action: rfc6020@edit-config
+                # we have issue with multipart modules,
+                # skip validate for now
+                validate_xml: false
                 payload:
                     rfc6020@config:
                       vyatta-system-v1@system:

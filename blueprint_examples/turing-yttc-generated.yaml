@@ -68,7 +68,6 @@ node_types:
         type: _config
       metadata:
         default:
-          module_prefix: turing-machine
           dsdl: '<?xml version="1.0" encoding="UTF-8"?><grammar xmlns:tm="http://example.net/turing-machine"
             xmlns="http://relaxng.org/ns/structure/1.0" xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1"
             datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes" xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"

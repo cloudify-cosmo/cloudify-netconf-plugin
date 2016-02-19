@@ -98,7 +98,7 @@ node_templates:
         start:
           inputs:
             calls:
-              - action: initialize
+              - action: turing@initialize
                 payload: { get_property: [ turing-machine-update-config-impl, rpc, initialize ] }
 
   turing-machine-run-impl:
@@ -110,7 +110,7 @@ node_templates:
         create:
           inputs:
             calls:
-              - action: run
+              - action: turing@run
                 payload: { get_property: [ turing-machine-run-impl, rpc, run ] }
         configure:
           inputs:
