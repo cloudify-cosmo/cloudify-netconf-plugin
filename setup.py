@@ -25,6 +25,16 @@ setup(
         'cloudify-plugins-common>=3.3',
         'lxml',
         'paramiko',  # for ssh netconf connection
-        'pyang',  # for validation rules
+    ],
+    data_files=[
+        ('share/netconf/xslt', [
+            'share-files/xslt/gen-common.xsl',
+            'share-files/xslt/gen-relaxng.xsl',
+            'share-files/xslt/gen-schematron.xsl',
+        ]),
+        ('share/netconf/schema', [
+            'share-files/schema/edit-config-attributes.rng',
+            'share-files/schema/relaxng-lib.rng',
+        ]),
     ]
 )

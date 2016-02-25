@@ -162,7 +162,7 @@ def _gen_relaxng_with_shematron(dsdl, operation=None):
     dsdl = etree.XML(str(dsdl))
     virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
     rng_rpc = open(
-        virrual_env_path + '/share/yang/xslt/gen-relaxng.xsl', 'rb'
+        virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl', 'rb'
     )
     with rng_rpc:
         xslt_root = etree.parse(rng_rpc)
@@ -170,7 +170,7 @@ def _gen_relaxng_with_shematron(dsdl, operation=None):
 
         # generate includes for relaxng
         transformed = transform(dsdl, **{
-            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
             "gdefs-only": "1"
         })
 
@@ -191,7 +191,7 @@ def _gen_relaxng_with_shematron(dsdl, operation=None):
 
         # validation for currect action
         transformed = transform(dsdl, **{
-            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
             "gdefs-only": "0",
             "target": "'" + operation_type + "'",
             "basename": "'" + main_module + "'"
@@ -207,14 +207,14 @@ def _gen_relaxng_with_shematron(dsdl, operation=None):
 
     # generate schematron
     sch_rpc = open(
-        virrual_env_path + '/share/yang/xslt/gen-schematron.xsl', 'rb'
+        virrual_env_path + '/share/netconf/xslt/gen-schematron.xsl', 'rb'
     )
     with sch_rpc:
         xslt_root = etree.parse(sch_rpc)
 
         transform = etree.XSLT(xslt_root)
         transformed = transform(dsdl, **{
-            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
             "gdefs-only": "1",
             "target": "'config'"
         })
