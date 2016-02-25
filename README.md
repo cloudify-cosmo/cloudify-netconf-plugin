@@ -26,3 +26,74 @@ Vyatta example is valid only for Brocade Vyatta Network OS 4.1 R2 and before run
 * bash gen-sample-keys.sh
 
 Script name can be different and related to Brocade vRouter version.
+
+## tags name convertions logic:
+* a -&gt; tag with name "a" and namespaces will be same as parent
+* a@b -&gt; tag with name "b" and namespace a
+* _@@a -&gt; attibute with name a and namespace will be same as parent
+* _@a@b -&gt; attibute with name b and namespace will be a
+* _@@ -&gt; text content for tag
+
+## examples of conversion
+
+### list
+from:
+{
+    b: {
+        a: [1, 2, 3],
+        c: 4
+    }
+}
+
+to:
+&lt;b&gt;
+    &lt;a&gt;1&lt;/a&gt;
+    &lt;a&gt;2&lt;/a&gt;
+    &lt;a&gt;3&lt;/a&gt;
+    &lt;c&gt;4&lt;/c&gt;
+&lt;/b&gt;
+
+### dict
+from:
+{
+    b: {
+        a: 1,
+        c: 2
+    }
+}
+
+to:
+&lt;b&gt;
+    &lt;a&gt;1&lt;/a&gt;
+    &lt;c&gt;2&lt;/c&gt;
+&lt;/b&gt;
+
+### attibutes
+from:
+{
+    b: {
+        _@@a: 1,
+        _@@: 2
+    }
+}
+
+to:
+
+&lt;b a=1&gt;
+    2
+&lt;/b&gt;
+
+### text value for tag with attibutes
+from:
+{
+    b@a: {
+        _@c@a: 1,
+        _@@: 2,
+        _@@g: 3
+    }
+}
+
+to:
+&lt;b:a c:a=1 b:g=3&gt;
+    2
+&lt;/b:a&gt;

@@ -307,18 +307,6 @@ class XmlRpcTest(unittest.TestCase):
                 "rfc6020@ok" in instance.runtime_properties["d"]
             )
 
-            # validation without relaxng
-            rpc.run(ctx=fake_ctx, calls=[{
-                'action': 'run_something',
-                'payload': {
-                    "c": "d"
-                },
-                'save_to': 'd',
-                'validation': {
-                    'xpath': 'somepath'
-                }
-            }])
-
             self.assertEqual(
                 nc_conn.current_level,
                 netconf_connection.NETCONF_1_0_CAPABILITY

@@ -16,6 +16,7 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from lxml import etree
 import netconf_connection
+import os
 import time
 import utils
 
@@ -130,6 +131,78 @@ def _merge_ns(base, override):
     return new_ns
 
 
+def _gen_relaxng_with_shematron(dsdl, main_module, operation=None):
+    """generate validation rules by dsdl"""
+    rng_txt = None
+    sch_txt = None
+    xpath = None
+    if not dsdl:
+        return rng_txt, sch_txt, xpath
+    if not main_module:
+        return rng_txt, sch_txt, xpath
+    if operation == "rfc6020@edit-config":
+        operation_type = "config"
+        xpath = "/rfc6020:rpc/rfc6020:edit-config/rfc6020:config"
+    else:
+        return rng_txt, sch_txt, xpath
+
+    # search base directory
+    dsdl = etree.XML(str(dsdl))
+    virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
+    rng_rpc = open(
+        virrual_env_path + '/share/yang/xslt/gen-relaxng.xsl', 'rb'
+    )
+    with rng_rpc:
+        xslt_root = etree.parse(rng_rpc)
+        transform = etree.XSLT(xslt_root)
+
+        # generate includes for relaxng
+        transformed = transform(dsdl, **{
+            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "gdefs-only": "1"
+        })
+
+        # save includes to file dictionary
+        # will be used in reintegrate includes to validation
+        base_dict = {
+            main_module + "-gdefs-" + operation_type + ".rng": etree.XML(
+                str(transformed)
+            )
+        }
+
+        # validation for currect action
+        transformed = transform(dsdl, **{
+            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "gdefs-only": "0",
+            "target": "'" + operation_type + "'"
+        })
+
+        # remerge everything
+        xmlns = utils.default_xmlns()
+        rng = etree.XML(str(transformed))
+        utils.load_relaxng_includes(rng, xmlns, base_dict)
+        rng_txt = etree.tostring(
+            rng, pretty_print=True
+        )
+
+    # generate schematron
+    sch_rpc = open(
+        virrual_env_path + '/share/yang/xslt/gen-schematron.xsl', 'rb'
+    )
+    with sch_rpc:
+        xslt_root = etree.parse(sch_rpc)
+
+        transform = etree.XSLT(xslt_root)
+        transformed = transform(dsdl, **{
+            "schema-dir": "'" + virrual_env_path + "/share/yang/schema'",
+            "gdefs-only": "1",
+            "target": "'config'"
+        })
+        sch_txt = str(transformed)
+
+    return rng_txt, sch_txt, xpath
+
+
 def _run_one(
     netconf, message_id, operation, netconf_namespace, data, xmlns
 ):
@@ -215,6 +288,7 @@ def run(**kwargs):
     user = properties.get('netconf_auth', {}).get('user')
     password = properties.get('netconf_auth', {}).get('password')
     key_content = properties.get('netconf_auth', {}).get('key_content')
+    port = properties.get('netconf_auth', {}).get('port', 830)
     if not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
@@ -225,6 +299,7 @@ def run(**kwargs):
 
     # xml namespaces and capabilities
     xmlns = properties.get('metadata', {}).get('xmlns', {})
+
     # override by system namespaces
     xmlns = _merge_ns(xmlns, properties.get('base_xmlns', {}))
 
@@ -241,7 +316,7 @@ def run(**kwargs):
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
     capabilities = netconf.connect(
-        ip, user, hello_string, password, key_content
+        ip, user, hello_string, password, key_content, port
     )
     ctx.logger.info("i recieved: " + capabilities)
 
@@ -277,14 +352,15 @@ def run(**kwargs):
         )
 
         # validate rpc
-        validation = call.get('validation', {})
-        xpath = validation.get('xpath')
+        rng, sch, xpath = _gen_relaxng_with_shematron(
+            properties.get('metadata', {}).get('dsdl'),
+            properties.get('metadata', {}).get('module_prefix'),
+            call.get('action')
+        )
         if xpath:
             ctx.logger.info(
                 "We have some validation rules for " + str(xpath)
             )
-            rng = validation.get('rng')
-            sch = validation.get('sch')
             utils.xml_validate(
                 parent, xmlns, xpath, rng, sch
             )

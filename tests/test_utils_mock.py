@@ -394,6 +394,18 @@ class UtilsMockTest(unittest.TestCase):
             self.RELAXNG_RESULT
         )
 
+    def test_load_relaxng_includes_without_file(self):
+        """check update relaxng with include"""
+        xmlns = utils.default_xmlns()
+        main_node = etree.XML(self.RELAXNG_MAIN)
+        utils.load_relaxng_includes(
+            main_node, xmlns, {"relaxng-lib.rng": self.RELAXNG_SLAVE}
+        )
+        self.assertEqual(
+            etree.tostring(main_node),
+            self.RELAXNG_RESULT
+        )
+
     def test_xml_validate(self):
         """check run xml validate"""
         relaxng_mock = mock.MagicMock()

@@ -24,5 +24,7 @@ setup(
     install_requires=[
         'cloudify-plugins-common>=3.3',
         'lxml',
+        'paramiko',  # for ssh netconf connection
+        'pyang',  # for validation rules
     ]
 )

@@ -229,6 +229,15 @@ def generate_dict_node(parent, xml_node, nslist):
 
 def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
     """Validate xml by rng and sch"""
+
+    def _repack_xml(xml_node):
+        # we have some issues with relaxng top node validation
+        # so we try to repack xml node
+        node_text = etree.tostring(
+            node, pretty_print=False
+        )
+        return etree.XML(node_text)
+
     if xpath:
 
         # rng rules
@@ -246,7 +255,7 @@ def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
         # run validation
         for node in parent.xpath(xpath, namespaces=xmlns):
             if relaxng:
-                if not relaxng.validate(node):
+                if not relaxng.validate(_repack_xml(node)):
                     raise cfy_exc.NonRecoverableError(
                         "Not valid xml by rng"
                     )
@@ -291,8 +300,10 @@ def _make_node_copy(xml_orig, nsmap):
     return clone
 
 
-def load_relaxng_includes(xml_node, xmlns):
+def load_relaxng_includes(xml_node, xmlns, replaces_files=None):
     """will replace all includes by real content"""
+    if not replaces_files:
+        replaces_files = {}
     nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
     grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
     while len(nodes):
@@ -301,7 +312,10 @@ def load_relaxng_includes(xml_node, xmlns):
             if parent is not None:
                 parent.remove(node)
                 if 'href' in node.attrib:
-                    subnodes = load_xml(node.attrib['href'])
+                    if node.attrib['href'] in replaces_files:
+                        subnodes = replaces_files[node.attrib['href']]
+                    else:
+                        subnodes = load_xml(node.attrib['href'])
                     if subnodes.tag == grammar_name:
                         for subnode in subnodes.getchildren():
                             parent.append(
