@@ -329,5 +329,98 @@ class XmlRpcTest(unittest.TestCase):
                 netconf_connection.NETCONF_1_1_CAPABILITY
             )
 
+        nc_conn.connect = mock.MagicMock(
+            return_value=self.CORRECT_HELLO_REPLY
+        )
+        with mock.patch(
+            'cloudify_netconf.netconf_connection.connection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            node.properties['metadata']['dsdl'] = "<a></a>"
+
+            transform_return = "<b>c</b>\n"
+            transform_function = mock.MagicMock(
+                return_value=transform_return
+            )
+            relaxng_mock = mock.MagicMock()
+            schematron_mock = mock.MagicMock()
+            # valid in any case
+            relaxng_mock.validate = mock.MagicMock(
+                return_value=True
+            )
+            schematron_mock.validate = mock.MagicMock(
+                return_value=True
+            )
+
+            with mock.patch(
+                'lxml.etree.XSLT', mock.MagicMock(
+                    return_value=transform_function
+                )
+            ):
+                with mock.patch(
+                    'lxml.isoschematron.Schematron', mock.MagicMock(
+                        return_value=schematron_mock
+                    )
+                ):
+                    with mock.patch(
+                        'lxml.etree.RelaxNG', mock.MagicMock(
+                            return_value=relaxng_mock
+                        )
+                    ):
+                        # have some payload with validatiuon
+                        rpc.run(ctx=fake_ctx, calls=[{
+                            'action': 'run_something',
+                            'payload': {
+                                "a": "b"
+                            }
+                        }])
+
+    def test_gen_relaxng_with_schematron(self):
+        # skip get config validation
+        self.assertEqual(
+            rpc._gen_relaxng_with_schematron(
+                "<a></a>", "rfc6020@get-config"
+            ),
+            (None, None, None)
+        )
+        # edit config
+        transform_return = "<b>c</b>\n"
+        transform_function = mock.MagicMock(
+            return_value=transform_return
+        )
+        with mock.patch(
+            'lxml.etree.XSLT', mock.MagicMock(
+                return_value=transform_function
+            )
+        ):
+            self.assertEqual(
+                rpc._gen_relaxng_with_schematron(
+                    "<a></a>", "rfc6020@edit-config"
+                ),
+                (
+                    transform_return, transform_return,
+                    '/rfc6020:rpc/rfc6020:edit-config/rfc6020:config'
+                )
+            )
+        # rpc
+        transform_return = "<b>c</b>\n"
+        transform_function = mock.MagicMock(
+            return_value=transform_return
+        )
+        with mock.patch(
+            'lxml.etree.XSLT', mock.MagicMock(
+                return_value=transform_function
+            )
+        ):
+            self.assertEqual(
+                rpc._gen_relaxng_with_schematron(
+                    "<a></a>", "rfc6020@some_rpc"
+                ),
+                (
+                    transform_return, transform_return,
+                    '/rfc6020:rpc'
+                )
+            )
+
 if __name__ == '__main__':
     unittest.main()

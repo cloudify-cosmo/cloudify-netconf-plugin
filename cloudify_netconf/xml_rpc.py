@@ -131,7 +131,7 @@ def _merge_ns(base, override):
     return new_ns
 
 
-def _gen_relaxng_with_shematron(dsdl, operation=None):
+def _gen_relaxng_with_schematron(dsdl, operation=None):
     """generate validation rules by dsdl"""
     # call that will be called without validation
     skiped_actions = [
@@ -219,8 +219,6 @@ def _gen_relaxng_with_shematron(dsdl, operation=None):
             "target": "'config'"
         })
         sch_txt = str(transformed)
-
-    ctx.logger.info("validation: {} in {}".format(xpath, operation_type))
 
     return rng_txt, sch_txt, xpath
 
@@ -374,7 +372,7 @@ def run(**kwargs):
         )
 
         # validate rpc
-        rng, sch, xpath = _gen_relaxng_with_shematron(
+        rng, sch, xpath = _gen_relaxng_with_schematron(
             properties.get('metadata', {}).get('dsdl'),
             call.get('action')
         )
