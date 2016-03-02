@@ -157,20 +157,25 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
         operation_type = "rpc"
         xpath = "/rfc6020:rpc"
 
-    main_module = operation_type + "-parent"
-    # search base directory
     dsdl = etree.XML(str(dsdl))
-    virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
+
+    # search base directory, hack for cloudify manager:
+    # we have different path to installed package and virtualenv
+    virrual_env_path = os.path.dirname(__file__) + "/../../../../"
     if not os.path.isfile(
         virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl'
     ):
-        # hack for cloudify manager install packages
-        # we have different path to installed package and virtualenv
-        virrual_env_path = os.path.dirname(__file__) + "/../../../../"
+        # more correct way
+        # get path from virtual env or use root as base directory
+        virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
+
+    # relaxng xslt
     rng_rpc = open(
         virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl', 'rb'
     )
     with rng_rpc:
+        main_module = operation_type + "-parent"
+
         xslt_root = etree.parse(rng_rpc)
         transform = etree.XSLT(xslt_root)
 
@@ -216,15 +221,19 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
         virrual_env_path + '/share/netconf/xslt/gen-schematron.xsl', 'rb'
     )
     with sch_rpc:
-        xslt_root = etree.parse(sch_rpc)
+        # generated broken schematron for non config nodes
+        if operation_type == 'config':
+            xslt_root = etree.parse(sch_rpc)
 
-        transform = etree.XSLT(xslt_root)
-        transformed = transform(dsdl, **{
-            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
-            "gdefs-only": "1",
-            "target": "'config'"
-        })
-        sch_txt = str(transformed)
+            transform = etree.XSLT(xslt_root)
+            transformed = transform(dsdl, **{
+                "schema-dir": (
+                    "'" + virrual_env_path + "/share/netconf/schema'"
+                ),
+                "gdefs-only": "1",
+                "target": "'" + operation_type + "'"
+            })
+            sch_txt = str(transformed)
 
     return rng_txt, sch_txt, xpath
 

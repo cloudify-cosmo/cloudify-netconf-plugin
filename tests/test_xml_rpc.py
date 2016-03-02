@@ -418,8 +418,7 @@ class XmlRpcTest(unittest.TestCase):
                     "<a></a>", "rfc6020@some_rpc"
                 ),
                 (
-                    transform_return, transform_return,
-                    '/rfc6020:rpc'
+                    transform_return, None, '/rfc6020:rpc'
                 )
             )
 
