@@ -297,6 +297,7 @@ class XmlRpcTest(unittest.TestCase):
                 'payload': {
                     "c": "d"
                 },
+                'validate_xml': False,
                 'save_to': 'd'
             }])
 

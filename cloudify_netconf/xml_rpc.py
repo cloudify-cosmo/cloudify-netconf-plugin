@@ -161,6 +161,12 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
     # search base directory
     dsdl = etree.XML(str(dsdl))
     virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
+    if not os.path.isfile(
+        virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl'
+    ):
+        # hack for cloudify manager install packages
+        # we have different path to installed package and virtualenv
+        virrual_env_path = os.path.dirname(__file__) + "/../../../../"
     rng_rpc = open(
         virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl', 'rb'
     )
@@ -371,16 +377,20 @@ def run(**kwargs):
             message_id, operation, netconf_namespace, data, xmlns
         )
 
-        # validate rpc
-        rng, sch, xpath = _gen_relaxng_with_schematron(
-            properties.get('metadata', {}).get('dsdl'),
-            call.get('action')
-        )
-
         # try to validate
         validate_xml = call.get('validate_xml', True)
 
-        if xpath and validate_xml:
+        if validate_xml:
+
+            # validate rpc
+            rng, sch, xpath = _gen_relaxng_with_schematron(
+                properties.get('metadata', {}).get('dsdl'),
+                call.get('action')
+            )
+        else:
+            xpath = None
+
+        if xpath:
             ctx.logger.info(
                 "We have some validation rules for '{}'".format(
                     str(xpath)
