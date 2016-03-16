@@ -35,7 +35,8 @@ class connection(object):
     current_level = NETCONF_1_0_CAPABILITY
 
     def connect(
-        self, ip, user, hello_string, password=None, key_content=None
+        self, ip, user, hello_string, password=None, key_content=None,
+        port=830
     ):
         """open connection and send xml string by link"""
         self.ssh = paramiko.SSHClient()
@@ -45,11 +46,11 @@ class connection(object):
                 StringIO(key_content)
             )
             self.ssh.connect(
-                ip, username=user, pkey=key, port=830
+                ip, username=user, pkey=key, port=port
             )
         else:
             self.ssh.connect(
-                ip, username=user, password=password, port=830
+                ip, username=user, password=password, port=port
             )
         self.chan = self.ssh.get_transport().open_session()
         self.chan.invoke_subsystem('netconf')
@@ -110,6 +111,9 @@ class connection(object):
     def close(self, goodbye_string):
         """send xml string by link and close connection"""
         response = self.send(goodbye_string)
-        self.chan.close()
-        self.ssh.close()
+        try:
+            # sometime code can't close in time
+            self.chan.close()
+        finally:
+            self.ssh.close()
         return response

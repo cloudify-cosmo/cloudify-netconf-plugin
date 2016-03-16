@@ -16,6 +16,7 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from lxml import etree
 import netconf_connection
+import os
 import time
 import utils
 
@@ -130,6 +131,113 @@ def _merge_ns(base, override):
     return new_ns
 
 
+def _gen_relaxng_with_schematron(dsdl, operation=None):
+    """generate validation rules by dsdl"""
+    # call that will be called without validation
+    skiped_actions = [
+        "rfc6020@get",
+        "rfc6020@get-config",
+        "rfc6020@lock",
+        "rfc6020@unlock",
+        "rfc6020@copy-config"
+    ]
+
+    rng_txt = None
+    sch_txt = None
+    xpath = None
+    if not dsdl:
+        return rng_txt, sch_txt, xpath
+    if operation == "rfc6020@edit-config":
+        operation_type = "config"
+        xpath = "/rfc6020:rpc/rfc6020:edit-config/rfc6020:config"
+    elif operation in skiped_actions:
+        return rng_txt, sch_txt, xpath
+    else:
+        # return rng_txt, sch_txt, xpath
+        operation_type = "rpc"
+        xpath = "/rfc6020:rpc"
+
+    dsdl = etree.XML(str(dsdl))
+
+    # search base directory, hack for cloudify manager:
+    # we have different path to installed package and virtualenv
+    virrual_env_path = os.path.dirname(__file__) + "/../../../../"
+    if not os.path.isfile(
+        virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl'
+    ):
+        # more correct way
+        # get path from virtual env or use root as base directory
+        virrual_env_path = os.environ.get("VIRTUAL_ENV", "/")
+
+    # relaxng xslt
+    rng_rpc = open(
+        virrual_env_path + '/share/netconf/xslt/gen-relaxng.xsl', 'rb'
+    )
+    with rng_rpc:
+        main_module = operation_type + "-parent"
+
+        xslt_root = etree.parse(rng_rpc)
+        transform = etree.XSLT(xslt_root)
+
+        # generate includes for relaxng
+        transformed = transform(dsdl, **{
+            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
+            "gdefs-only": "1"
+        })
+
+        # save includes to file dictionary
+        # will be used in reintegrate includes to validation
+        if operation_type == 'config':
+            base_dict = {
+                main_module + "-gdefs-" + operation_type + ".rng": etree.XML(
+                    str(transformed)
+                )
+            }
+        else:
+            base_dict = {
+                main_module + "-gdefs.rng": etree.XML(
+                    str(transformed)
+                )
+            }
+
+        # validation for currect action
+        transformed = transform(dsdl, **{
+            "schema-dir": "'" + virrual_env_path + "/share/netconf/schema'",
+            "gdefs-only": "0",
+            "target": "'" + operation_type + "'",
+            "basename": "'" + main_module + "'"
+        })
+
+        # remerge everything
+        xmlns = utils.default_xmlns()
+        rng = etree.XML(str(transformed))
+        utils.load_relaxng_includes(rng, xmlns, base_dict)
+        rng_txt = etree.tostring(
+            rng, pretty_print=True
+        )
+
+    # generate schematron
+    sch_rpc = open(
+        virrual_env_path + '/share/netconf/xslt/gen-schematron.xsl', 'rb'
+    )
+    with sch_rpc:
+        # generated broken schematron for non config nodes
+        if operation_type == 'config':
+            xslt_root = etree.parse(sch_rpc)
+
+            transform = etree.XSLT(xslt_root)
+            transformed = transform(dsdl, **{
+                "schema-dir": (
+                    "'" + virrual_env_path + "/share/netconf/schema'"
+                ),
+                "gdefs-only": "1",
+                "target": "'" + operation_type + "'"
+            })
+            sch_txt = str(transformed)
+
+    return rng_txt, sch_txt, xpath
+
+
 def _run_one(
     netconf, message_id, operation, netconf_namespace, data, xmlns
 ):
@@ -215,6 +323,7 @@ def run(**kwargs):
     user = properties.get('netconf_auth', {}).get('user')
     password = properties.get('netconf_auth', {}).get('password')
     key_content = properties.get('netconf_auth', {}).get('key_content')
+    port = properties.get('netconf_auth', {}).get('port', 830)
     if not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
@@ -225,6 +334,7 @@ def run(**kwargs):
 
     # xml namespaces and capabilities
     xmlns = properties.get('metadata', {}).get('xmlns', {})
+
     # override by system namespaces
     xmlns = _merge_ns(xmlns, properties.get('base_xmlns', {}))
 
@@ -241,7 +351,7 @@ def run(**kwargs):
     ctx.logger.info("i sent: " + hello_string)
     netconf = netconf_connection.connection()
     capabilities = netconf.connect(
-        ip, user, hello_string, password, key_content
+        ip, user, hello_string, password, key_content, port
     )
     ctx.logger.info("i recieved: " + capabilities)
 
@@ -276,15 +386,26 @@ def run(**kwargs):
             message_id, operation, netconf_namespace, data, xmlns
         )
 
-        # validate rpc
-        validation = call.get('validation', {})
-        xpath = validation.get('xpath')
+        # try to validate
+        validate_xml = call.get('validate_xml', True)
+
+        if validate_xml:
+
+            # validate rpc
+            rng, sch, xpath = _gen_relaxng_with_schematron(
+                properties.get('metadata', {}).get('dsdl'),
+                call.get('action')
+            )
+        else:
+            xpath = None
+
         if xpath:
             ctx.logger.info(
-                "We have some validation rules for " + str(xpath)
+                "We have some validation rules for '{}'".format(
+                    str(xpath)
+                )
             )
-            rng = validation.get('rng')
-            sch = validation.get('sch')
+
             utils.xml_validate(
                 parent, xmlns, xpath, rng, sch
             )

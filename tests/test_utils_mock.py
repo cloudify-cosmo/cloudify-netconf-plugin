@@ -230,8 +230,8 @@ class UtilsMockTest(unittest.TestCase):
         rpc_string = etree.tostring(parent)
         example_string = (
             """<r:rpc xmlns:r="urn:ietf:params:xml:ns:netconf:base:""" +
-            """1.0" xmlns:n="someaction" message-id="some_id"><r:ru""" +
-            """n><r:b>b</r:b></r:run></r:rpc>"""
+            """1.0" xmlns:n="someaction" r:message-id="some_id"><r:""" +
+            """run><r:b>b</r:b></r:run></r:rpc>"""
         )
         self.assertEqual(rpc_string, example_string)
         # have namespace in action
@@ -241,8 +241,8 @@ class UtilsMockTest(unittest.TestCase):
         rpc_string = etree.tostring(parent)
         example_string = (
             """<r:rpc xmlns:r="urn:ietf:params:xml:ns:netconf:base:""" +
-            """1.0" xmlns:n="someaction" message-id="some_id"><n:ru""" +
-            """n><n:b>b</n:b></n:run></r:rpc>"""
+            """1.0" xmlns:n="someaction" r:message-id="some_id"><n:""" +
+            """run><n:b>b</n:b></n:run></r:rpc>"""
         )
         self.assertEqual(rpc_string, example_string)
 
@@ -389,6 +389,20 @@ class UtilsMockTest(unittest.TestCase):
             '__builtin__.open', fake_file
         ):
             utils.load_relaxng_includes(main_node, xmlns)
+        self.assertEqual(
+            etree.tostring(main_node),
+            self.RELAXNG_RESULT
+        )
+
+    def test_load_relaxng_includes_without_file(self):
+        """check update relaxng with include"""
+        xmlns = utils.default_xmlns()
+        main_node = etree.XML(self.RELAXNG_MAIN)
+        utils.load_relaxng_includes(
+            main_node, xmlns, {
+                "relaxng-lib.rng": etree.XML(self.RELAXNG_SLAVE)
+            }
+        )
         self.assertEqual(
             etree.tostring(main_node),
             self.RELAXNG_RESULT

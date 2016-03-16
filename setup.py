@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
@@ -24,5 +24,17 @@ setup(
     install_requires=[
         'cloudify-plugins-common>=3.3',
         'lxml',
+        'paramiko',  # for ssh netconf connection
+    ],
+    data_files=[
+        ('share/netconf/xslt', [
+            'share-files/xslt/gen-common.xsl',
+            'share-files/xslt/gen-relaxng.xsl',
+            'share-files/xslt/gen-schematron.xsl',
+        ]),
+        ('share/netconf/schema', [
+            'share-files/schema/edit-config-attributes.rng',
+            'share-files/schema/relaxng-lib.rng',
+        ]),
     ]
 )

@@ -143,7 +143,7 @@ def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
         action_name = netconf_namespace + "@" + operation
     new_node = {
         action_name: data,
-        "_@@message-id": message_id
+        "_@" + netconf_namespace + "@message-id": message_id
     }
     return generate_xml_node(
         new_node,
@@ -227,8 +227,42 @@ def generate_dict_node(parent, xml_node, nslist):
     _node_to_dict(parent, xml_node, xmlns)
 
 
+def xml_repack_node(xml_node):
+    # we have some issues with relaxng top node validation
+    # so we try to repack xml node
+    node_text = etree.tostring(
+        xml_node, pretty_print=False
+    )
+    return etree.XML(node_text)
+
+
+# def xml_repack_text(node_text):
+#    # we have some issues with relaxng top node validation
+#    # so we try to repack xml node
+#    xml_node = etree.XML(node_text)
+#    return etree.tostring(
+#        xml_node, pretty_print=False
+#    )
+
+
+def _xml_validate_node(node, relaxng, schematron):
+    if relaxng:
+        if not relaxng.validate(xml_repack_node(node)):
+            raise cfy_exc.NonRecoverableError(
+                "Not valid xml by rng\n reason:" + str(
+                    relaxng.error_log.last_error
+                )
+            )
+    if schematron:
+        if not schematron.validate(node):
+            raise cfy_exc.NonRecoverableError(
+                "Not valid xml by Schematron"
+            )
+
+
 def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
     """Validate xml by rng and sch"""
+
     if xpath:
 
         # rng rules
@@ -243,18 +277,9 @@ def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
             sch_node = etree.XML(sch)
             schematron = isoschematron.Schematron(sch_node)
 
-        # run validation
+        # run validation selected by xpath nodes
         for node in parent.xpath(xpath, namespaces=xmlns):
-            if relaxng:
-                if not relaxng.validate(node):
-                    raise cfy_exc.NonRecoverableError(
-                        "Not valid xml by rng"
-                    )
-            if schematron:
-                if not schematron.validate(node):
-                    raise cfy_exc.NonRecoverableError(
-                        "Not valid xml by Schematron"
-                    )
+            _xml_validate_node(node, relaxng, schematron)
 
 
 # relaxng specific parts
@@ -291,8 +316,10 @@ def _make_node_copy(xml_orig, nsmap):
     return clone
 
 
-def load_relaxng_includes(xml_node, xmlns):
+def load_relaxng_includes(xml_node, xmlns, replaces_files=None):
     """will replace all includes by real content"""
+    if not replaces_files:
+        replaces_files = {}
     nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
     grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
     while len(nodes):
@@ -301,7 +328,10 @@ def load_relaxng_includes(xml_node, xmlns):
             if parent is not None:
                 parent.remove(node)
                 if 'href' in node.attrib:
-                    subnodes = load_xml(node.attrib['href'])
+                    if node.attrib['href'] in replaces_files:
+                        subnodes = replaces_files[node.attrib['href']]
+                    else:
+                        subnodes = load_xml(node.attrib['href'])
                     if subnodes.tag == grammar_name:
                         for subnode in subnodes.getchildren():
                             parent.append(
