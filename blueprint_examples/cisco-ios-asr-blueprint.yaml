@@ -1,0 +1,78 @@
+# example for cisco ASR* (IOS) based on
+# https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/cns/configuration/xe-16/cns-xe-16-book/netconf-sshv2.html
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.4/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-netconf-plugin/master/plugin.yaml
+
+inputs:
+
+  netconf_ip:
+    type: string
+    description: >
+       netconf server ip
+    default: 127.0.0.1
+
+  netconf_user:
+    type: string
+    description: >
+       netconf server user
+    default: netconf
+  netconf_password:
+    type: string
+    description: >
+       netconf server user password
+    default: netconf
+
+  netconf_key_content:
+    type: string
+    description: >
+       netconf server user rsa key content, can be used instead password
+    default: ""
+
+node_types:
+
+  ios_node_config:
+    derived_from: cloudify.netconf.nodes.xml_rpc
+    properties:
+      metadata:
+        default:
+          capabilities:
+            - urn:ietf:params:netconf:base:1.0
+            - urn:ietf:params:netconf:capability:writeable-running:1.0
+            - urn:ietf:params:netconf:capability:rollback-on-error:1.0
+            - urn:ietf:params:netconf:capability:startup:1.0
+            - urn:ietf:params:netconf:capability:url:1.0
+            - urn:cisco:params:netconf:capability:pi-data-model:1.0
+            - urn:cisco:params:netconf:capability:notification:1.0
+          xmlns:
+            cpi: http://www.cisco.com/cpi_10/schema
+
+node_templates:
+
+  ios_impl:
+    type: ios_node_config
+    properties:
+      netconf_auth:
+        user: { get_input: netconf_user }
+        password: { get_input: netconf_password }
+        ip: { get_input: netconf_ip }
+        key_content: { get_input: netconf_key_content }
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            calls:
+              # get full config
+              - action: rfc6020@get-config
+                payload:
+                  rfc6020@source:
+                    rfc6020@running: {}
+                save_to: origin_interfaces
+
+outputs:
+  config:
+    description: Full config
+    value: { get_attribute: [ ios_impl, origin_interfaces ] }

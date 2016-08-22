@@ -35,7 +35,7 @@ node_templates:
     properties:
       netconf_auth:
         user: { get_input: netconf_user }
-        password: { get_input: netconf_user }
+        password: { get_input: netconf_password }
         ip: { get_input: netconf_ip }
         key_content: { get_input: netconf_key_content }
 
