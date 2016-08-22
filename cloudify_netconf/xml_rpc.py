@@ -319,11 +319,13 @@ def run(**kwargs):
 
     # credentials
     properties = ctx.node.properties
-    ip = properties.get('netconf_auth', {}).get('ip')
-    user = properties.get('netconf_auth', {}).get('user')
-    password = properties.get('netconf_auth', {}).get('password')
-    key_content = properties.get('netconf_auth', {}).get('key_content')
-    port = properties.get('netconf_auth', {}).get('port', 830)
+    netconf_auth = properties.get('netconf_auth', {})
+    netconf_auth.update(kwargs.get('netconf_auth', {}))
+    ip = netconf_auth.get('ip')
+    user = netconf_auth.get('user')
+    password = netconf_auth.get('password')
+    key_content = netconf_auth.get('key_content')
+    port = netconf_auth.get('port', 830)
     if not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
