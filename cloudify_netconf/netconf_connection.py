@@ -46,11 +46,14 @@ class connection(object):
                 StringIO(key_content)
             )
             self.ssh.connect(
-                ip, username=user, pkey=key, port=port
+                ip, username=user, pkey=key, port=port,
+                allow_agent=False
             )
         else:
+            # cisco requered disable allow_agent
             self.ssh.connect(
-                ip, username=user, password=password, port=port
+                ip, username=user, password=password, port=port,
+                allow_agent=False, look_for_keys=False
             )
         self.chan = self.ssh.get_transport().open_session()
         self.chan.invoke_subsystem('netconf')

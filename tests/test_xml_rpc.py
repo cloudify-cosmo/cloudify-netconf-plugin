@@ -13,6 +13,7 @@
 # limitations under the License.
 from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
+from cloudify.state import current_ctx
 import cloudify_netconf.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
@@ -56,6 +57,9 @@ class XmlRpcTest(unittest.TestCase):
             <ok/>
         </rpc-reply>
     """
+
+    def tearDown(self):
+        current_ctx.clear()
 
     def test_generate_hello(self):
         """check hello message"""
@@ -221,6 +225,7 @@ class XmlRpcTest(unittest.TestCase):
         node.runtime_properties = {}
 
         # no calls
+        current_ctx.set(fake_ctx)
         rpc.run(ctx=fake_ctx)
 
         # with empty list of calls

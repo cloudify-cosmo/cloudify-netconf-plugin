@@ -254,7 +254,8 @@ def _run_one(
         encoding='UTF-8'
     )
     ctx.logger.info("i sent: " + rpc_string)
-    response = netconf.send(rpc_string)
+    # cisco send new line before package, so need strip
+    response = netconf.send(rpc_string).strip()
     ctx.logger.info("i recieved:" + response)
 
     response_dict = _parse_response(
