@@ -14,11 +14,11 @@
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
+import cloudify_netconf.netconf_connection as netconf_connection
+import cloudify_netconf.utils as utils
 from lxml import etree
-import netconf_connection
 import os
 import time
-import utils
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):

@@ -85,6 +85,28 @@ data_types:
 node_types:
 
   # common type for rpc calls
+  cloudify.netconf.translator.xml2netconf:
+    derived_from: cloudify.nodes.Root
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: netconf.cloudify_netconf.xml2netconf.run
+          inputs: {}
+        configure:
+          implementation: netconf.cloudify_netconf.xml2netconf.run
+          inputs: {}
+        start:
+          implementation: netconf.cloudify_netconf.xml2netconf.run
+          inputs: {}
+        stop:
+          implementation: netconf.cloudify_netconf.xml2netconf.run
+          inputs: {}
+        delete:
+          implementation: netconf.cloudify_netconf.xml2netconf.run
+          inputs: {}
+
+
+  # common type for rpc calls
   cloudify.netconf.nodes.xml_rpc:
     derived_from: cloudify.nodes.Root
     properties:
