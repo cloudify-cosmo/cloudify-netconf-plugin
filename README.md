@@ -222,4 +222,7 @@ fully same license as original files from pyang.
 * you can use `cloudify.netconf.translator.xml2netconf` for convert raw xml
 to `correct` struct that can be later used in payload. Please look to
 `blueprint_examples/translator_example.yaml`.
-
+* you can skip set `ip` in `netconf_auth` in case if your node have
+`cloudify.nodes.Compute` node in relationships with type
+`cloudify.relationships.contained_in`. In such case as `ip` will be used
+`ip` from compute node.

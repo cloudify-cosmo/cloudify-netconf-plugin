@@ -223,6 +223,16 @@ class XmlRpcTest(unittest.TestCase):
         fake_ctx._node = node
         node.properties = {}
         node.runtime_properties = {}
+        hello_message = (
+            """<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<rfc6020""" +
+            """:hello xmlns:a="b" xmlns:d="c" xmlns:rfc6020="urn:ie""" +
+            """tf:params:xml:ns:netconf:base:1.0">\n  <rfc6020:capa""" +
+            """bilities>\n    <rfc6020:capability>urn:ietf:params:n""" +
+            """etconf:base:1.0</rfc6020:capability>\n    <rfc6020:c""" +
+            """apability>urn:ietf:params:netconf:base:1.1</rfc6020:""" +
+            """capability>\n  </rfc6020:capabilities>\n</rfc6020:he""" +
+            """llo>\n"""
+        )
 
         # no calls
         current_ctx.set(fake_ctx)
@@ -270,6 +280,9 @@ class XmlRpcTest(unittest.TestCase):
         ):
             # we have empty action
             rpc.run(ctx=fake_ctx, calls=[{'unknow': 'get'}])
+            nc_conn.connect.assert_called_with(
+                'super_secret', 'me', hello_message, 'secret', None, 830
+            )
 
             # have some payload
             rpc.run(ctx=fake_ctx, calls=[{
@@ -318,10 +331,13 @@ class XmlRpcTest(unittest.TestCase):
                 netconf_connection.NETCONF_1_0_CAPABILITY
             )
 
-        # version 1.1
+        # version 1.1 and ip from cloudify.relationships.contained_in
         nc_conn.connect = mock.MagicMock(
             return_value=self.CORRECT_HELLO_1_1_REPLY
         )
+        # drop ip from auth dict, lets use 'container' ip
+        node.properties['netconf_auth']["ip"] = None
+        instance.host_ip = "ip_from_runtime"
         with mock.patch(
             'cloudify_netconf.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
@@ -330,6 +346,10 @@ class XmlRpcTest(unittest.TestCase):
                 'action': 'run_something',
             }])
 
+            # we use correct ip from instance runtime properties
+            nc_conn.connect.assert_called_with(
+                'ip_from_runtime', 'me', hello_message, 'secret', None, 830
+            )
             self.assertEqual(
                 nc_conn.current_level,
                 netconf_connection.NETCONF_1_1_CAPABILITY

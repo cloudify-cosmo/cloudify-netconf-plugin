@@ -322,11 +322,16 @@ def run(**kwargs):
     properties = ctx.node.properties
     netconf_auth = properties.get('netconf_auth', {})
     netconf_auth.update(kwargs.get('netconf_auth', {}))
-    ip = netconf_auth.get('ip')
     user = netconf_auth.get('user')
     password = netconf_auth.get('password')
     key_content = netconf_auth.get('key_content')
     port = netconf_auth.get('port', 830)
+    ip = netconf_auth.get('ip')
+    # if node contained in some other node, try to overwrite ip
+    if not ip:
+        ip = ctx.instance.host_ip
+        ctx.logger.info("Used host from container: %s" % ip)
+    # check minimal amout of credentials
     if not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"

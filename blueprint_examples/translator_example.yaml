@@ -57,6 +57,12 @@ node_types:
 
 node_templates:
 
+  host:
+    type: cloudify.nodes.Compute
+    properties:
+      install_agent: false
+      ip: { get_input: netconf_ip }
+
   xml_check:
     type: cloudify.netconf.translator.xml2netconf
     interfaces:
@@ -84,7 +90,6 @@ node_templates:
       netconf_auth:
         user: { get_input: netconf_user }
         password: { get_input: netconf_password }
-        ip: { get_input: netconf_ip }
         key_content: { get_input: netconf_key_content }
         port: { get_input: netconf_port }
 
@@ -99,8 +104,10 @@ node_templates:
                 payload: { get_attribute: [ xml_check, get_config, rfc6020@rpc, rfc6020@get-config ] }
 
     relationships:
-      - type: cloudify.relationships.contained_in
+      - type: cloudify.relationships.depends_on
         target: xml_check
+      - type: cloudify.relationships.contained_in
+        target: host
 
 outputs:
   config:

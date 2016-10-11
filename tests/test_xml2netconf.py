@@ -11,11 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
 from cloudify.state import current_ctx
-import cloudify_netconf.netconf_connection as netconf_connection
-import cloudify_netconf.utils as utils
 import cloudify_netconf.xml2netconf as xml2netconf
 import mock
 import unittest
@@ -72,5 +69,3 @@ class Xml2NetConfTest(unittest.TestCase):
                 'rfc6020': 'urn:ietf:params:xml:ns:netconf:base:1.0'
             }
         })
-
-
