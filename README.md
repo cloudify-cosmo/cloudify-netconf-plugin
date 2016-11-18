@@ -38,6 +38,7 @@ Script name can be different and related to Brocade vRouter version.
 * _@@a -> attribute with name a and namespace will be same as parent
 * _@a@b -> attribute with name b and namespace will be a
 * _@@ -> text content for tag
+* _!_ -> text will be inserted as xml to parent node
 
 ## examples of conversion
 
@@ -110,6 +111,27 @@ to:
     2
 </b:a>
 ```
+
+### text value for raw insert
+from:
+```
+{
+    "a": {
+        "_!_": "<g><a></a><c></c><d></d></g>"
+    }
+}
+```
+to:
+```
+<a>
+    <g>
+        <a/>
+        <c/>
+        <d/>
+    </g>
+</a>
+```
+
 ## Node description example
 ```
 

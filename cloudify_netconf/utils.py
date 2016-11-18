@@ -61,6 +61,10 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
     if node_name == "_@@":
         parent.text = str(value)
         return
+    # special case for raw nodes
+    if node_name == "_!_":
+        parent.append(etree.XML(value))
+        return
     # general logic
     attribute, tag_namespace, tag_name = _node_name(
         node_name, namespace, xmlns
