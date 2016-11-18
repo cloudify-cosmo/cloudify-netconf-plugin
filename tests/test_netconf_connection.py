@@ -168,7 +168,8 @@ class NetConfConnectionMockTest(unittest.TestCase):
             "I'm policy"
         )
         will_be_ssh.connect.assert_called_with(
-            '127.0.0.100', username='me', password='unknow', port=830
+            '127.0.0.100', username='me', password='unknow', port=830,
+            allow_agent=False, look_for_keys=False
         )
         will_be_ssh.get_transport.assert_called_with()
         transport_mock.open_session.assert_called_with()
@@ -223,7 +224,8 @@ class NetConfConnectionMockTest(unittest.TestCase):
             "I'm policy"
         )
         will_be_ssh.connect.assert_called_with(
-            '127.0.0.100', username='me', pkey='secret', port=830
+            '127.0.0.100', username='me', pkey='secret', port=830,
+            allow_agent=False
         )
         will_be_ssh.get_transport.assert_called_with()
         transport_mock.open_session.assert_called_with()

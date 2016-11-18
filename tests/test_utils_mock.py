@@ -57,14 +57,14 @@ class UtilsMockTest(unittest.TestCase):
 
     # stripped version of turing xml
     TURING_STRIPPED = (
-        """<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netco""" +
-        """nf:base:1.0" xmlns:turing="a" xmlns:_turing_="http://exa""" +
-        """mple.net/turing-machine"><rfc6020:rpc rfc6020:message-id""" +
+        """<rfc6020:rpc xmlns:_turing_="http://example.net/turing-m""" +
+        """achine" xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:ba""" +
+        """se:1.0" xmlns:turing="a"><rfc6020:rpc rfc6020:message-id""" +
         """="some_id"><rfc6020:get><rfc6020:source><rfc6020:running""" +
-        """/></rfc6020:source><rfc6020:filter rfc6020:type="subtree""" +
-        """"><_turing_:turing-machine><_turing_:transition-function""" +
-        """/></_turing_:turing-machine></rfc6020:filter></rfc6020:g""" +
-        """et></rfc6020:rpc></rfc6020:rpc>"""
+        """/></rfc6020:source><rfc6020:filter rfc6020:type="subtre""" +
+        """e"><_turing_:turing-machine><_turing_:transition-functio""" +
+        """n/></_turing_:turing-machine></rfc6020:filter></rfc6020:""" +
+        """get></rfc6020:rpc></rfc6020:rpc>"""
     )
 
     def test_xml_to_dict_net_namespace(self):
@@ -229,9 +229,9 @@ class UtilsMockTest(unittest.TestCase):
         )
         rpc_string = etree.tostring(parent)
         example_string = (
-            """<r:rpc xmlns:r="urn:ietf:params:xml:ns:netconf:base:""" +
-            """1.0" xmlns:n="someaction" r:message-id="some_id"><r:""" +
-            """run><r:b>b</r:b></r:run></r:rpc>"""
+            """<r:rpc xmlns:n="someaction" xmlns:r="urn:ietf:""" +
+            """params:xml:ns:netconf:base:1.0" r:message-id""" +
+            """="some_id"><r:run><r:b>b</r:b></r:run></r:rpc>"""
         )
         self.assertEqual(rpc_string, example_string)
         # have namespace in action
@@ -240,9 +240,9 @@ class UtilsMockTest(unittest.TestCase):
         )
         rpc_string = etree.tostring(parent)
         example_string = (
-            """<r:rpc xmlns:r="urn:ietf:params:xml:ns:netconf:base:""" +
-            """1.0" xmlns:n="someaction" r:message-id="some_id"><n:""" +
-            """run><n:b>b</n:b></n:run></r:rpc>"""
+            """<r:rpc xmlns:n="someaction" xmlns:r="urn:ietf:""" +
+            """params:xml:ns:netconf:base:1.0" r:message-id""" +
+            """="some_id"><n:run><n:b>b</n:b></n:run></r:rpc>"""
         )
         self.assertEqual(rpc_string, example_string)
 

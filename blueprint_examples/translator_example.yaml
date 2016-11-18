@@ -57,13 +57,39 @@ node_types:
 
 node_templates:
 
+  host:
+    type: cloudify.nodes.Compute
+    properties:
+      install_agent: false
+      ip: { get_input: netconf_ip }
+
+  xml_check:
+    type: cloudify.netconf.translator.xml2netconf
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            # list predifined namespaces, please put all namespases
+            # from xmls, if you want reuse
+            xmlns: { get_property: [ios_impl, metadata, xmlns] }
+            # list xml for translate and reuse
+            xmls:
+              - save_to: get_config
+                raw: >
+                    <nc_ns:rpc xmlns:cpi="http://www.cisco.com/cpi_10/schema" xmlns:nc_ns="urn:ietf:params:xml:ns:netconf:base:1.0" nc_ns:message-id="89056">
+                        <nc_ns:get-config>
+                            <nc_ns:source>
+                                <nc_ns:running/>
+                            </nc_ns:source>
+                        </nc_ns:get-config>
+                    </nc_ns:rpc>
+
   ios_impl:
     type: ios_node_config
     properties:
       netconf_auth:
         user: { get_input: netconf_user }
         password: { get_input: netconf_password }
-        ip: { get_input: netconf_ip }
         key_content: { get_input: netconf_key_content }
         port: { get_input: netconf_port }
 
@@ -74,12 +100,22 @@ node_templates:
             calls:
               # get full config
               - action: rfc6020@get-config
-                payload:
-                  rfc6020@source:
-                    rfc6020@running: {}
-                save_to: origin_interfaces
+                # use result of previous parse node
+                payload: { get_attribute: [ xml_check, get_config, rfc6020@rpc, rfc6020@get-config ] }
+
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: xml_check
+      - type: cloudify.relationships.contained_in
+        target: host
 
 outputs:
   config:
     description: Full config
     value: { get_attribute: [ ios_impl, origin_interfaces ] }
+
+  yaml_dump:
+    description: xml to yaml result
+    value:
+        payload: { get_attribute: [ xml_check, get_config ] }
+        xml_ns: { get_attribute: [ xml_check, get_config_ns ] }
