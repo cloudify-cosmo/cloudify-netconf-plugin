@@ -134,7 +134,7 @@ class XmlRpcTest(unittest.TestCase):
         """check parse response code"""
         xml = self.CORRECT_REPLY
         netconf_namespace, xmlns = utils.update_xmlns({})
-        response = rpc._parse_response(xmlns, netconf_namespace, xml)
+        response = rpc._parse_response(xmlns, netconf_namespace, xml, True)
         self.assertEqual(
             response, {
                 '_@rfc6020@message-id': '57380',
@@ -154,7 +154,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        response = rpc._parse_response(xmlns, netconf_namespace, xml)
+        response = rpc._parse_response(xmlns, netconf_namespace, xml, True)
         self.assertEqual(
             response, {
                 '_@@message-id': '57380',
@@ -175,7 +175,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml)
+            rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
         # error in reply
         xml = """
@@ -185,7 +185,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml)
+            rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
         # error in reply with namespace
         xml = """
@@ -197,7 +197,33 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml)
+            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+
+        # check issues with xml
+        xml = """
+            <rpc-reply
+                xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+                xmlns:junos="http://xml.juniper.net/junos/12.1X46/junos"
+                xmlns:junos="http://xml.juniper.net/junos/12.1X46/junos"
+                xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0"
+                xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm"
+                rfc6020:message-id="229">
+                    <ok/>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        response = rpc._parse_response(xmlns, netconf_namespace, xml, False)
+        self.assertEqual(
+            response, {
+                'rfc6020@ok': None,
+                '_@rfc6020@message-id': '229'
+            }
+        )
+
+        # raise execption for uncorrect xml
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
     def test_server_support_1_1(self):
         """check support 1.1 response from server"""
@@ -285,39 +311,49 @@ class XmlRpcTest(unittest.TestCase):
             )
 
             # have some payload
-            rpc.run(ctx=fake_ctx, calls=[{
-                'action': 'run_something',
-                'payload': {
-                    "a": "b"
-                }
-            }])
+            rpc.run(
+                ctx=fake_ctx, calls=[{
+                    'action': 'run_something',
+                    'payload': {
+                        "a": "b"
+                    }
+                }]
+            )
 
             # have lock/unlock operations
-            rpc.run(ctx=fake_ctx, calls=[{
-                'action': 'run_something',
-                'payload': {
-                    "a": "b"
-                }
-            }], lock=["rfc6020@candidate"])
+            rpc.run(
+                ctx=fake_ctx, calls=[{
+                    'action': 'run_something',
+                    'payload': {
+                        "a": "b"
+                    }
+                }],
+                lock=["rfc6020@candidate"]
+            )
 
             # have some copy operations
-            rpc.run(ctx=fake_ctx, calls=[{
-                'action': 'run_something',
-                'payload': {
-                    "a": "b"
-                }
-            }], back_database="a", front_database="b")
+            rpc.run(
+                ctx=fake_ctx, calls=[{
+                    'action': 'run_something',
+                    'payload': {
+                        "a": "b"
+                    }
+                }],
+                back_database="a", front_database="b"
+            )
 
             # check save to runtime properties
             self.assertEqual(instance.runtime_properties, {})
-            rpc.run(ctx=fake_ctx, calls=[{
-                'action': 'run_something',
-                'payload': {
-                    "c": "d"
-                },
-                'validate_xml': False,
-                'save_to': 'd'
-            }])
+            rpc.run(
+                ctx=fake_ctx, calls=[{
+                    'action': 'run_something',
+                    'payload': {
+                        "c": "d"
+                    },
+                    'validate_xml': False,
+                    'save_to': 'd'
+                }]
+            )
 
             # looks as we save something
             self.assertTrue("d" in instance.runtime_properties)
@@ -394,12 +430,14 @@ class XmlRpcTest(unittest.TestCase):
                         )
                     ):
                         # have some payload with validatiuon
-                        rpc.run(ctx=fake_ctx, calls=[{
-                            'action': 'run_something',
-                            'payload': {
-                                "a": "b"
-                            }
-                        }])
+                        rpc.run(
+                            ctx=fake_ctx, calls=[{
+                                'action': 'run_something',
+                                'payload': {
+                                    "a": "b"
+                                }
+                            }]
+                        )
 
     def test_gen_relaxng_with_schematron(self):
         # skip get config validation

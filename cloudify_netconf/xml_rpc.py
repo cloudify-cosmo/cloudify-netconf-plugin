@@ -83,9 +83,20 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
     return False
 
 
-def _parse_response(xmlns, netconf_namespace, response):
+def _parse_response(xmlns, netconf_namespace, response, strict_check):
     """parse response from server with check to rpc-error"""
-    xml_node = etree.XML(response)
+    if strict_check:
+        try:
+            xml_node = etree.XML(response)
+        except etree.XMLSyntaxError as e:
+            raise cfy_exc.NonRecoverableError(
+                "Syntax error in xml %s" % str(e)
+            )
+    else:
+        # for case when we recieved not fully correct xml
+        parser = etree.XMLParser(recover=True)
+        xml_node = etree.XML(response, parser)
+
     xml_dict = {}
     utils.generate_dict_node(
         xml_dict, xml_node,
@@ -239,7 +250,8 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
 
 
 def _run_one(
-    netconf, message_id, operation, netconf_namespace, data, xmlns
+    netconf, message_id, operation, netconf_namespace, data, xmlns,
+    strict_check
 ):
     """run one call by netconf connection"""
     # rpc
@@ -259,13 +271,14 @@ def _run_one(
     ctx.logger.info("i recieved:" + response)
 
     response_dict = _parse_response(
-        xmlns, netconf_namespace, response
+        xmlns, netconf_namespace, response, strict_check
     )
     ctx.logger.info("package will be :" + str(response_dict))
     return response_dict
 
 
-def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
+def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns,
+          strict_check):
     """lock database by name"""
     operation = "@lock" if lock else "@unlock"
     data = {
@@ -275,11 +288,12 @@ def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns):
     }
     _run_one(
         netconf, message_id, netconf_namespace + operation,
-        netconf_namespace, data, xmlns
+        netconf_namespace, data, xmlns, strict_check
     )
 
 
-def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
+def _copy(front, back, netconf, message_id, netconf_namespace, xmlns,
+          strict_check):
     """copy fron database values to back database"""
     data = {
         netconf_namespace + "@source": {
@@ -291,7 +305,7 @@ def _copy(front, back, netconf, message_id, netconf_namespace, xmlns):
     }
     _run_one(
         netconf, message_id, netconf_namespace + "@copy-config",
-        netconf_namespace, data, xmlns
+        netconf_namespace, data, xmlns, strict_check
     )
 
 
@@ -367,19 +381,20 @@ def run(**kwargs):
         ctx.logger.info("i will use version 1.1 of netconf protocol")
         netconf.current_level = netconf_connection.NETCONF_1_1_CAPABILITY
 
+    strict_check = kwargs.get('strict_check', True)
     if 'lock' in kwargs:
         message_id = message_id + 1
         for name in kwargs['lock']:
             _lock(
                 name, True, netconf, message_id, netconf_namespace,
-                xmlns
+                xmlns, strict_check
             )
 
     if 'back_database' in kwargs and 'front_database' in kwargs:
         message_id = message_id + 1
         _copy(
             kwargs['front_database'], kwargs['back_database'],
-            netconf, message_id, netconf_namespace, xmlns
+            netconf, message_id, netconf_namespace, xmlns, strict_check
         )
 
     # recheck before real send
@@ -439,7 +454,7 @@ def run(**kwargs):
 
         response_dict = _run_one(
             netconf, message_id, operation, netconf_namespace, data,
-            xmlns
+            xmlns, strict_check
         )
 
         # save results to runtime properties
@@ -452,7 +467,7 @@ def run(**kwargs):
         message_id = message_id + 1
         _copy(
             kwargs['back_database'], kwargs['front_database'],
-            netconf, message_id, netconf_namespace, xmlns
+            netconf, message_id, netconf_namespace, xmlns, strict_check
         )
 
     if 'lock' in kwargs:
@@ -460,7 +475,7 @@ def run(**kwargs):
         for name in kwargs['lock']:
             _lock(
                 name, False, netconf, message_id, netconf_namespace,
-                xmlns
+                xmlns, strict_check
             )
 
     # goodbye
