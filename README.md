@@ -160,12 +160,14 @@ node_templates:
               <list databased for lock, optional>
             back_database: <datebase to copy, optional>
             front_database: <database for copy, optional>
+            strict_check: <ignore not critical errors in xml, optional>
             calls:
               - action: <action name for netconf>
                 validate_xml: <validate by dsdl, optional by default true>
                 payload:
                   <dict for put to payload>
                 save_to: <field name for save to runtime properties, optional>
+                path_for_error: <path for rpc-error, optional>
 ```
 
 ## Xml2Netconf description example

@@ -72,6 +72,7 @@ node_templates:
           inputs:
             strict_check: false
             calls:
+              # update by edit config
               # get full config
               - action: rfc6020@get-config
                 payload:
@@ -106,6 +107,28 @@ node_templates:
                 payload:
                   rfc6020@target:
                     rfc6020@candidate: {}
+
+              # same but by upload configuration
+              - action: xnm@discard-changes
+              - action: xnm@open-configuration
+                payload:
+                    private: {}
+              - action: xnm@load-configuration
+                # error will be placed inside of this tag
+                path_for_error: load-configuration-results
+                payload:
+                    _@@action: merge
+                    _@@format: xml
+                    configuration:
+                       interfaces:
+                          interface:
+                              name: vlan
+                              unit:
+                                 name: 0
+                                 description: Itest
+              - action: xnm@commit
+              - action: xnm@close-configuration
+
         delete:
           inputs:
             strict_check: false

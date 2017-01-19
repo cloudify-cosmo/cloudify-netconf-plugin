@@ -83,7 +83,60 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
     return False
 
 
-def _parse_response(xmlns, netconf_namespace, response, strict_check):
+def _check_reply_for_errors(reply, netconf_namespace, path_for_error=None):
+    # error check
+    error = None
+    # we can have empty error, so we need additional flag for that
+    have_error = False
+
+    # only for case when we have errors in the middle of message
+    # case is not described in https://tools.ietf.org/html/rfc6241#section-4.3
+    # but can be in wild life
+    if path_for_error:
+        if path_for_error in reply:
+            reply = reply[path_for_error]
+        elif (netconf_namespace + '@' + path_for_error) in reply:
+            reply = reply[netconf_namespace + '@' + path_for_error]
+
+    if 'rpc-error' in reply:
+        errors = reply['rpc-error']
+        have_error = True
+    elif (netconf_namespace + '@rpc-error') in reply:
+        # default namespace can't be not netconf 1.0
+        errors = reply[netconf_namespace + '@rpc-error']
+        have_error = True
+
+    if have_error:
+        if not isinstance(errors, list):
+            # case when we have only one error struct
+            errors = [errors]
+
+        for error in errors:
+            if not error:
+                # we have empty rpc-error?
+                break
+            # server can send warning as error, lets check
+            error_severity = 'error'
+            if 'error-severity' in error:
+                error_severity = error['error-severity']
+            elif (netconf_namespace + '@error-severity') in error:
+                error_severity = error[netconf_namespace + '@error-severity']
+            if error_severity == 'warning':
+                have_error = False
+            # looks as real error
+            else:
+                break
+
+    if have_error:
+        raise cfy_exc.NonRecoverableError(
+            "We have error in reply" + str(errors)
+        )
+
+    return reply
+
+
+def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
+                    path_for_error=None):
     """parse response from server with check to rpc-error"""
     if strict_check:
         try:
@@ -112,21 +165,9 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check):
         raise cfy_exc.NonRecoverableError(
             "unexpected reply struct"
         )
-    # error check
-    error = None
-    # we can have empty error, so we need additional flag for that
-    have_error = False
-    if 'rpc-error' in reply:
-        error = reply['rpc-error']
-        have_error = True
-    elif (netconf_namespace + '@rpc-error') in reply:
-        # default namespace can't be not netconf 1.0
-        error = reply[netconf_namespace + '@rpc-error']
-        have_error = True
-    if have_error:
-        raise cfy_exc.NonRecoverableError(
-            "We have error in reply" + str(error)
-        )
+
+    _check_reply_for_errors(reply, netconf_namespace, path_for_error)
+
     return reply
 
 
@@ -251,7 +292,7 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
 
 def _run_one(
     netconf, message_id, operation, netconf_namespace, data, xmlns,
-    strict_check
+    strict_check=False, path_for_error=None
 ):
     """run one call by netconf connection"""
     # rpc
@@ -271,7 +312,7 @@ def _run_one(
     ctx.logger.info("i recieved:" + response)
 
     response_dict = _parse_response(
-        xmlns, netconf_namespace, response, strict_check
+        xmlns, netconf_namespace, response, strict_check, path_for_error
     )
     ctx.logger.info("package will be :" + str(response_dict))
     return response_dict
@@ -436,6 +477,7 @@ def run(**kwargs):
     # we can have several calls in one session,
     # like lock, edit-config, unlock
     for call in calls:
+        path_for_error = call.get('path_for_error')
         operation = call.get('action')
         if not operation:
             ctx.logger.info("No operations")
@@ -454,7 +496,7 @@ def run(**kwargs):
 
         response_dict = _run_one(
             netconf, message_id, operation, netconf_namespace, data,
-            xmlns, strict_check
+            xmlns, strict_check, path_for_error
         )
 
         # save results to runtime properties

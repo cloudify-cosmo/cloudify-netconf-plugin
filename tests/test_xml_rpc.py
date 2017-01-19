@@ -187,6 +187,45 @@ class XmlRpcTest(unittest.TestCase):
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
+        # warning in reply
+        xml = """
+            <rpc-reply message-id="57380">
+                <rpc-error>
+                    <error-severity>warning</error-severity>
+                </rpc-error>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        rpc._parse_response(xmlns, netconf_namespace, xml, True)
+
+        # error in reply
+        xml = """
+            <rpc-reply message-id="57380">
+                <rpc-error>
+                    <error-severity>error</error-severity>
+                </rpc-error>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+
+        # error in reply in uncommon place
+        xml = """
+            <rpc-reply message-id="57380">
+                <uncommon>
+                    <rpc-error>
+                        <error-severity>error</error-severity>
+                    </rpc-error>
+                </uncommon>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._parse_response(
+                xmlns, netconf_namespace, xml, True, "uncommon"
+            )
+
         # error in reply with namespace
         xml = """
             <rpc-reply
@@ -198,6 +237,37 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml, True)
+
+        # warning in reply with namespace
+        xml = """
+            <rpc-reply
+                xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+                message-id="57380">
+                <rpc-error>
+                    <error-severity>warning</error-severity>
+                </rpc-error>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        rpc._parse_response(xmlns, netconf_namespace, xml, True)
+
+        # error in reply in uncommon place with namespace
+        xml = """
+            <rpc-reply
+                xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+                message-id="57380">
+                <uncommon>
+                    <rpc-error>
+                        <error-severity>error</error-severity>
+                    </rpc-error>
+                </uncommon>
+            </rpc-reply>
+        """
+        netconf_namespace, xmlns = utils.update_xmlns({})
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._parse_response(
+                xmlns, netconf_namespace, xml, True, "uncommon"
+            )
 
         # check issues with xml
         xml = """
