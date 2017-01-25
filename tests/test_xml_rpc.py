@@ -130,6 +130,27 @@ class XmlRpcTest(unittest.TestCase):
         rpc._update_data(base, "rfc6020@edit-config", "a", "b")
         self.assertEqual(base, {'a@target': {'b': None}})
 
+        # without backend db
+        base = {}
+        rpc._update_data(base, "rfc6020@edit-config", "a", None)
+        self.assertEqual(base, {})
+
+    def _get_fake_nc_connect(self):
+        """netconf connection mock"""
+        nc_conn = mock.Mock()
+        nc_conn.connect = mock.MagicMock(
+            return_value=self.CORRECT_HELLO_REPLY
+        )
+        nc_conn.send = mock.MagicMock(
+            return_value=self.CORRECT_REPLY
+        )
+        nc_conn.close = mock.MagicMock(
+            return_value=self.CORRECT_CLOSE_REPLY
+        )
+        nc_conn.current_level = netconf_connection.NETCONF_1_0_CAPABILITY
+
+        return nc_conn
+
     def test_parse_response(self):
         """check parse response code"""
         xml = self.CORRECT_REPLY
@@ -309,8 +330,7 @@ class XmlRpcTest(unittest.TestCase):
             )
         )
 
-    def test_run(self):
-        """check connect/call rpc/close connection sequence"""
+    def _get_mock_context_for_run(self):
         fake_ctx = cfy_mocks.MockCloudifyContext()
         instance = mock.Mock()
         instance.runtime_properties = {}
@@ -319,6 +339,111 @@ class XmlRpcTest(unittest.TestCase):
         fake_ctx._node = node
         node.properties = {}
         node.runtime_properties = {}
+        fake_ctx.get_resource = mock.MagicMock(
+            return_value=""
+        )
+        return fake_ctx, node, instance
+
+    def test_run_templates(self):
+        # check template engine
+        fake_ctx, _, _ = self._get_mock_context_for_run()
+        nc_conn = self._get_fake_nc_connect()
+
+        current_ctx.set(fake_ctx)
+
+        rpc._run_templates(
+            nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
+            {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"}, False
+        )
+
+        nc_conn.send.assert_called_with(
+            'correct'
+        )
+
+    def test_run_with_template(self):
+        """check connect/call rpc/close connection calls sequence"""
+        fake_ctx, node, instance = self._get_mock_context_for_run()
+
+        hello_message = (
+            """<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<rfc6020""" +
+            """:hello xmlns:a="b" xmlns:d="c" xmlns:rfc6020="urn:ie""" +
+            """tf:params:xml:ns:netconf:base:1.0">\n  <rfc6020:capa""" +
+            """bilities>\n    <rfc6020:capability>urn:ietf:params:n""" +
+            """etconf:base:1.0</rfc6020:capability>\n    <rfc6020:c""" +
+            """apability>urn:ietf:params:netconf:base:1.1</rfc6020:""" +
+            """capability>\n  </rfc6020:capabilities>\n</rfc6020:he""" +
+            """llo>\n"""
+        )
+
+        # no calls
+        current_ctx.set(fake_ctx)
+
+        # with empty list of calls
+        rpc.run(ctx=fake_ctx, template=None)
+        rpc.run(ctx=fake_ctx, template="")
+
+        # with list of calls, but without auth
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc.run(ctx=fake_ctx, template="template.xml")
+
+        nc_conn = self._get_fake_nc_connect()
+
+        node.properties = {
+            'netconf_auth': {
+                "user": "me",
+                "password": "secret",
+                "ip": "super_secret"
+            },
+            'metadata': {
+                'xmlns': {
+                    'd': 'c'
+                }
+            },
+            "base_xmlns": {
+                "a": "b"
+            }
+        }
+        with mock.patch(
+            'cloudify_netconf.netconf_connection.connection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            # we have empty action
+            rpc.run(ctx=fake_ctx, template="template.xml")
+            nc_conn.connect.assert_called_with(
+                'super_secret', 'me', hello_message, 'secret', None, 830
+            )
+
+            fake_ctx.get_resource.assert_called_with(
+                "template.xml"
+            )
+
+            # have some params
+            fake_ctx.get_resource = mock.MagicMock(
+                return_value="{{ a }}"
+            )
+
+            # empty params
+            rpc.run(
+                ctx=fake_ctx, template="template.xml", params={}
+            )
+
+            # real params
+            rpc.run(
+                ctx=fake_ctx, template="template.xml", params={'a': 'b'}
+            )
+
+            # template with empty commands, must be skiped
+            fake_ctx.get_resource = mock.MagicMock(
+                return_value="]]>]]>\n]]>]]>"
+            )
+            rpc.run(
+                ctx=fake_ctx, template="template.xml", params={'a': 'b'}
+            )
+
+    def test_run_with_calls(self):
+        """check connect/call rpc/close connection calls sequence"""
+        fake_ctx, node, instance = self._get_mock_context_for_run()
+
         hello_message = (
             """<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<rfc6020""" +
             """:hello xmlns:a="b" xmlns:d="c" xmlns:rfc6020="urn:ie""" +
@@ -341,19 +466,7 @@ class XmlRpcTest(unittest.TestCase):
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc.run(ctx=fake_ctx, calls=[{'action': 'get'}])
 
-        # netconf connection mock
-        nc_conn = mock.Mock()
-        nc_conn.connect = mock.MagicMock(
-            return_value=self.CORRECT_HELLO_REPLY
-        )
-        nc_conn.send = mock.MagicMock(
-            return_value=self.CORRECT_REPLY
-        )
-        nc_conn.close = mock.MagicMock(
-            return_value=self.CORRECT_CLOSE_REPLY
-        )
-
-        nc_conn.current_level = netconf_connection.NETCONF_1_0_CAPABILITY
+        nc_conn = self._get_fake_nc_connect()
 
         node.properties = {
             'netconf_auth': {
@@ -379,6 +492,7 @@ class XmlRpcTest(unittest.TestCase):
             nc_conn.connect.assert_called_with(
                 'super_secret', 'me', hello_message, 'secret', None, 830
             )
+            fake_ctx.get_resource.assert_not_called()
 
             # have some payload
             rpc.run(

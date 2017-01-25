@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1001">
+  <xnm:discard-changes/>
+</rfc6020:rpc>]]>]]>
+
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1002">
+  <xnm:open-configuration>
+    <xnm:private/>
+  </xnm:open-configuration>
+</rfc6020:rpc>]]>]]>
+
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1003">
+  <xnm:load-configuration xnm:action="merge" xnm:format="xml">
+    <xnm:configuration>
+      <xnm:interfaces>
+        <xnm:interface>
+          <xnm:name>vlan</xnm:name>
+          <xnm:unit>
+            <xnm:name>0</xnm:name>
+            <xnm:description>{{ description }}</xnm:description>
+          </xnm:unit>
+        </xnm:interface>
+      </xnm:interfaces>
+    </xnm:configuration>
+  </xnm:load-configuration>
+</rfc6020:rpc>]]>]]>
+
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1004">
+  <xnm:commit/>
+</rfc6020:rpc>]]>]]>
+
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1005">
+  <xnm:close-configuration/>
+</rfc6020:rpc>]]>]]>

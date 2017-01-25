@@ -15,8 +15,8 @@ from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
-    version='0.1',
-    description='support netconf',
+    version='0.2',
+    description='Cloudify Netconf plugin',
     author='Denis Pauk',
     author_email='pauk.denis@gmail.com',
     license='LICENSE',
@@ -25,6 +25,7 @@ setup(
         'cloudify-plugins-common>=3.3',
         'lxml',
         'paramiko',  # for ssh netconf connection
+        "Jinja2>=2.7.2",  # for template support
     ],
     data_files=[
         ('share/netconf/xslt', [

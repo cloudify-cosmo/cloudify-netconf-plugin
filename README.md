@@ -33,11 +33,11 @@ Vyatta example is valid only for Brocade Vyatta Network OS 4.1 R2 and before run
 Script name can be different and related to Brocade vRouter version.
 
 ## tags name conversions logic:
-* a -> tag with name "a" and namespaces will be same as parent
-* a@b -> tag with name "b" and namespace a
-* _@@a -> attribute with name a and namespace will be same as parent
-* _@a@b -> attribute with name b and namespace will be a
-* _@@ -> text content for tag
+* ```a``` -> tag with name "a" and namespaces will be same as parent
+* ```a@b``` -> tag with name "b" and namespace a
+* ```_@@a``` -> attribute with name a and namespace will be same as parent
+* ```_@a@b``` -> attribute with name b and namespace will be a
+* ```_@@``` -> text content for tag
 * ```_!_``` -> text will be inserted as xml to parent node
 
 ## examples of conversion
@@ -168,6 +168,52 @@ node_templates:
                   <dict for put to payload>
                 save_to: <field name for save to runtime properties, optional>
                 path_for_error: <path for rpc-error, optional>
+```
+
+## Node description example with xml template
+
+### xml command list file part (template file)
+```
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1001">
+  <rpc-command-one/>
+</rfc6020:rpc>]]>]]>
+
+<?xml version='1.0' encoding='UTF-8'?>
+<rfc6020:rpc xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:base:1.0" xmlns:xnm="http://xml.juniper.net/xnm/1.1/xnm" rfc6020:message-id="1002">
+  <rpc-command-two>
+    {{ some_param_name }}
+  </rpc-command-two>
+</rfc6020:rpc>]]>]]>
+```
+As separator between commands must be used ```]]>]]>```
+
+### yaml example part
+```
+
+node_templates:
+  some-implimentation:
+    type: cloudify.netconf.nodes.xml_rpc
+    properties:
+      netconf_auth:
+        user: <user on device>
+        password: <password on device, optional>
+        ip: <ip for device>
+        key_content: <private key content>
+        port: <port for device, optional by default 830>
+      metadata:
+        xmlns:
+          _: <default namespace>
+        capabilities:
+          <list of capabilities, optional>
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: // can be create / configure / start / stop / delete
+          inputs:
+            strict_check: <ignore not critical errors in xml, optional>
+            template: <template file name>
+            params: <dict params for template, optional>
+              some_param_name: some param name
 ```
 
 ## Xml2Netconf description example

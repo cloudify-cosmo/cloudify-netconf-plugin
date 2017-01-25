@@ -14,6 +14,8 @@
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
+
+from jinja2 import Template
 import cloudify_netconf.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 from lxml import etree
@@ -84,6 +86,7 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
 
 
 def _check_reply_for_errors(reply, netconf_namespace, path_for_error=None):
+    # https://tools.ietf.org/html/rfc6241#section-4.3
     # error check
     error = None
     # we can have empty error, so we need additional flag for that
@@ -290,10 +293,22 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
     return rng_txt, sch_txt, xpath
 
 
-def _run_one(
-    netconf, message_id, operation, netconf_namespace, data, xmlns,
-    strict_check=False, path_for_error=None
-):
+def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+                    strict_check, path_for_error):
+    ctx.logger.info("i sent: " + rpc_string)
+    # cisco send new line before package, so need strip
+    response = netconf.send(rpc_string).strip()
+    ctx.logger.info("i recieved:" + response)
+
+    response_dict = _parse_response(
+        xmlns, netconf_namespace, response, strict_check, path_for_error
+    )
+    ctx.logger.info("package will be :" + str(response_dict))
+    return response_dict
+
+
+def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns,
+             strict_check=False, path_for_error=None):
     """run one call by netconf connection"""
     # rpc
     ctx.logger.info("rpc call")
@@ -306,16 +321,9 @@ def _run_one(
         parent, pretty_print=True, xml_declaration=True,
         encoding='UTF-8'
     )
-    ctx.logger.info("i sent: " + rpc_string)
-    # cisco send new line before package, so need strip
-    response = netconf.send(rpc_string).strip()
-    ctx.logger.info("i recieved:" + response)
 
-    response_dict = _parse_response(
-        xmlns, netconf_namespace, response, strict_check, path_for_error
-    )
-    ctx.logger.info("package will be :" + str(response_dict))
-    return response_dict
+    return _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+                           strict_check, path_for_error)
 
 
 def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns,
@@ -354,6 +362,8 @@ def _update_data(data, operation, netconf_namespace, back):
     """update operation with database name"""
     if operation != 'rfc6020@edit-config':
         return
+    if not back:
+        return
     if "target" in data:
         if not data["target"]:
             data["target"] = {back: None}
@@ -364,13 +374,105 @@ def _update_data(data, operation, netconf_namespace, back):
     data[netconf_namespace + "@target"] = {back: None}
 
 
+def _run_templates(netconf, templates, template_params, netconf_namespace,
+                   xmlns, strict_check):
+    for template in templates:
+        if not template:
+            continue
+
+        template = template.strip()
+        if not template:
+            continue
+
+        if template_params:
+            template_engine = Template(template)
+            rpc_string = template_engine.render(template_params)
+        else:
+            rpc_string = template
+
+        _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+                        strict_check, path_for_error="")
+
+
+def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
+               back_database, dsdl, strict_check):
+    # recheck before real send
+    for call in calls:
+        operation = call.get('action')
+        if not operation:
+            continue
+        data = call.get('payload', {})
+
+        # gen xml for check
+        parent = utils.rpc_gen(
+            message_id, operation, netconf_namespace, data, xmlns
+        )
+
+        # try to validate
+        validate_xml = call.get('validate_xml', True)
+
+        if validate_xml:
+
+            # validate rpc
+            rng, sch, xpath = _gen_relaxng_with_schematron(
+                dsdl, call.get('action')
+            )
+        else:
+            xpath = None
+
+        if xpath:
+            ctx.logger.info(
+                "We have some validation rules for '{}'".format(
+                    str(xpath)
+                )
+            )
+
+            utils.xml_validate(
+                parent, xmlns, xpath, rng, sch
+            )
+
+    # we can have several calls in one session,
+    # like lock, edit-config, unlock
+    for call in calls:
+        path_for_error = call.get('path_for_error')
+        operation = call.get('action')
+        if not operation:
+            ctx.logger.info("No operations")
+            continue
+        data = call.get('payload', {})
+
+        message_id = message_id + 1
+
+        if "@" not in operation:
+            operation = "_@" + operation
+
+        _update_data(data, operation, netconf_namespace, back_database)
+
+        response_dict = _run_one(
+            netconf, message_id, operation, netconf_namespace, data,
+            xmlns, strict_check, path_for_error
+        )
+
+        # save results to runtime properties
+        save_to = call.get('save_to')
+        if save_to:
+            ctx.instance.runtime_properties[save_to] = response_dict
+            ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+
+
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
 
     calls = kwargs.get('calls', [])
-    if not calls:
-        ctx.logger.info("No calls")
+
+    template = kwargs.get('template')
+    templates = []
+    if template:
+        templates = ctx.get_resource(template).split("]]>]]>")
+
+    if not calls and not templates:
+        ctx.logger.info("Pleaase provide calls or template")
         return
 
     # credentials
@@ -438,72 +540,15 @@ def run(**kwargs):
             netconf, message_id, netconf_namespace, xmlns, strict_check
         )
 
-    # recheck before real send
-    for call in calls:
-        operation = call.get('action')
-        if not operation:
-            continue
-        data = call.get('payload', {})
-
-        # gen xml for check
-        parent = utils.rpc_gen(
-            message_id, operation, netconf_namespace, data, xmlns
-        )
-
-        # try to validate
-        validate_xml = call.get('validate_xml', True)
-
-        if validate_xml:
-
-            # validate rpc
-            rng, sch, xpath = _gen_relaxng_with_schematron(
-                properties.get('metadata', {}).get('dsdl'),
-                call.get('action')
-            )
-        else:
-            xpath = None
-
-        if xpath:
-            ctx.logger.info(
-                "We have some validation rules for '{}'".format(
-                    str(xpath)
-                )
-            )
-
-            utils.xml_validate(
-                parent, xmlns, xpath, rng, sch
-            )
-
-    # we can have several calls in one session,
-    # like lock, edit-config, unlock
-    for call in calls:
-        path_for_error = call.get('path_for_error')
-        operation = call.get('action')
-        if not operation:
-            ctx.logger.info("No operations")
-            continue
-        data = call.get('payload', {})
-
-        message_id = message_id + 1
-
-        if "@" not in operation:
-            operation = "_@" + operation
-
-        _update_data(
-            data, operation, netconf_namespace,
-            kwargs.get('back_database')
-        )
-
-        response_dict = _run_one(
-            netconf, message_id, operation, netconf_namespace, data,
-            xmlns, strict_check, path_for_error
-        )
-
-        # save results to runtime properties
-        save_to = call.get('save_to')
-        if save_to:
-            ctx.instance.runtime_properties[save_to] = response_dict
-            ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+    if calls:
+        dsdl = properties.get('metadata', {}).get('dsdl')
+        _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
+                   kwargs.get('back_database'), dsdl, strict_check)
+    elif templates:
+        template_params = kwargs.get('params')
+        ctx.logger.info("Params for template %s" % str(template_params))
+        _run_templates(netconf, templates, template_params, netconf_namespace,
+                       xmlns, strict_check)
 
     if 'back_database' in kwargs and 'front_database' in kwargs:
         message_id = message_id + 1
