@@ -167,7 +167,7 @@ node_templates:
                 payload:
                   <dict for put to payload>
                 save_to: <field name for save to runtime properties, optional>
-                path_for_error: <path for rpc-error, optional>
+                deep_error_check: <look deeply for errors, optional by default false>
 ```
 
 ## Node description example with xml template
@@ -211,6 +211,7 @@ node_templates:
         create: // can be create / configure / start / stop / delete
           inputs:
             strict_check: <ignore not critical errors in xml, optional>
+            deep_error_check: <look deeply for errors, optional by default false>
             template: <template file name>
             params: <dict params for template, optional>
               some_param_name: some param name

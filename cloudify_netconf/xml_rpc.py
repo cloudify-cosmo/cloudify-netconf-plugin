@@ -85,61 +85,73 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
     return False
 
 
-def _check_reply_for_errors(reply, netconf_namespace, path_for_error=None):
-    # https://tools.ietf.org/html/rfc6241#section-4.3
+def _have_error(reply, netconf_namespace):
     # error check
+    # https://tools.ietf.org/html/rfc6241#section-4.3
     error = None
-    # we can have empty error, so we need additional flag for that
-    have_error = False
-
-    # only for case when we have errors in the middle of message
-    # case is not described in https://tools.ietf.org/html/rfc6241#section-4.3
-    # but can be in wild life
-    if path_for_error:
-        if path_for_error in reply:
-            reply = reply[path_for_error]
-        elif (netconf_namespace + '@' + path_for_error) in reply:
-            reply = reply[netconf_namespace + '@' + path_for_error]
 
     if 'rpc-error' in reply:
         errors = reply['rpc-error']
-        have_error = True
     elif (netconf_namespace + '@rpc-error') in reply:
         # default namespace can't be not netconf 1.0
         errors = reply[netconf_namespace + '@rpc-error']
-        have_error = True
+    else:
+        return
 
-    if have_error:
-        if not isinstance(errors, list):
-            # case when we have only one error struct
-            errors = [errors]
+    if not isinstance(errors, list):
+        # case when we have only one error struct
+        errors = [errors]
 
-        for error in errors:
-            if not error:
-                # we have empty rpc-error?
-                break
-            # server can send warning as error, lets check
-            error_severity = 'error'
-            if 'error-severity' in error:
-                error_severity = error['error-severity']
-            elif (netconf_namespace + '@error-severity') in error:
-                error_severity = error[netconf_namespace + '@error-severity']
-            if error_severity == 'warning':
-                have_error = False
-            # looks as real error
-            else:
-                break
+    for error in errors:
+        if not error:
+            # we have empty rpc-error?
+            raise cfy_exc.NonRecoverableError(
+                "Empty error struct:" + str(errors)
+            )
 
-    if have_error:
-        raise cfy_exc.NonRecoverableError(
-            "We have error in reply" + str(errors)
-        )
+        # server can send warning as error, lets check
+        error_severity = 'error'
+        if 'error-severity' in error:
+            error_severity = error['error-severity']
+        elif (netconf_namespace + '@error-severity') in error:
+            error_severity = error[netconf_namespace + '@error-severity']
+        if error_severity != 'warning':
+            raise cfy_exc.NonRecoverableError(
+                "We have error in reply" + str(errors)
+            )
+
+
+def _search_error(reply, netconf_namespace):
+    # recursive search for error tag, slow and dangerous
+    if isinstance(reply, basestring):
+        return
+    elif isinstance(reply, list):
+        for tag in reply:
+            _search_error(tag, netconf_namespace)
+    elif isinstance(reply, dict):
+        _have_error(reply, netconf_namespace)
+        for tag_name in reply:
+            _search_error(reply[tag_name], netconf_namespace)
+            if tag_name.find("@rpc-error") != -1 and tag_name[:2] != "_@":
+                # repack to detect error with different namespace
+                namespace = tag_name[:tag_name.find("@rpc-error")]
+                _have_error({'rpc-error': reply[tag_name]}, namespace)
+
+
+def _check_reply_for_errors(reply, netconf_namespace, deep_error_check=False):
+    if deep_error_check:
+        # only for case when we have errors in the middle of message
+        # is not described in https://tools.ietf.org/html/rfc6241#section-4.3
+        # but can be in wild life
+        _search_error(reply, netconf_namespace)
+    else:
+        _have_error(reply, netconf_namespace)
 
     return reply
 
 
 def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
-                    path_for_error=None):
+                    deep_error_check=False):
     """parse response from server with check to rpc-error"""
     if strict_check:
         try:
@@ -169,7 +181,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
             "unexpected reply struct"
         )
 
-    _check_reply_for_errors(reply, netconf_namespace, path_for_error)
+    _check_reply_for_errors(reply, netconf_namespace, deep_error_check)
 
     return reply
 
@@ -294,21 +306,26 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
 
 
 def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
-                    strict_check, path_for_error):
+                    strict_check, deep_error_check):
+    ctx.logger.info(
+        "Checks: xml validation: %s, rpc_error deep check: %s " % (
+            strict_check, deep_error_check
+        )
+    )
     ctx.logger.info("i sent: " + rpc_string)
     # cisco send new line before package, so need strip
     response = netconf.send(rpc_string).strip()
     ctx.logger.info("i recieved:" + response)
 
     response_dict = _parse_response(
-        xmlns, netconf_namespace, response, strict_check, path_for_error
+        xmlns, netconf_namespace, response, strict_check, deep_error_check
     )
     ctx.logger.info("package will be :" + str(response_dict))
     return response_dict
 
 
 def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns,
-             strict_check=False, path_for_error=None):
+             strict_check=False, deep_error_check=False):
     """run one call by netconf connection"""
     # rpc
     ctx.logger.info("rpc call")
@@ -323,7 +340,7 @@ def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns,
     )
 
     return _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
-                           strict_check, path_for_error)
+                           strict_check, deep_error_check)
 
 
 def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns,
@@ -375,7 +392,7 @@ def _update_data(data, operation, netconf_namespace, back):
 
 
 def _run_templates(netconf, templates, template_params, netconf_namespace,
-                   xmlns, strict_check):
+                   xmlns, strict_check, deep_error_check):
     for template in templates:
         if not template:
             continue
@@ -391,7 +408,7 @@ def _run_templates(netconf, templates, template_params, netconf_namespace,
             rpc_string = template
 
         _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
-                        strict_check, path_for_error="")
+                        strict_check, deep_error_check)
 
 
 def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
@@ -434,7 +451,7 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
     # we can have several calls in one session,
     # like lock, edit-config, unlock
     for call in calls:
-        path_for_error = call.get('path_for_error')
+        deep_error_check = call.get('deep_error_check')
         operation = call.get('action')
         if not operation:
             ctx.logger.info("No operations")
@@ -450,7 +467,7 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
 
         response_dict = _run_one(
             netconf, message_id, operation, netconf_namespace, data,
-            xmlns, strict_check, path_for_error
+            xmlns, strict_check, deep_error_check
         )
 
         # save results to runtime properties
@@ -472,7 +489,7 @@ def run(**kwargs):
         templates = ctx.get_resource(template).split("]]>]]>")
 
     if not calls and not templates:
-        ctx.logger.info("Pleaase provide calls or template")
+        ctx.logger.info("Please provide calls or template")
         return
 
     # credentials
@@ -546,9 +563,10 @@ def run(**kwargs):
                    kwargs.get('back_database'), dsdl, strict_check)
     elif templates:
         template_params = kwargs.get('params')
+        deep_error_check = kwargs.get('deep_error_check')
         ctx.logger.info("Params for template %s" % str(template_params))
         _run_templates(netconf, templates, template_params, netconf_namespace,
-                       xmlns, strict_check)
+                       xmlns, strict_check, deep_error_check)
 
     if 'back_database' in kwargs and 'front_database' in kwargs:
         message_id = message_id + 1

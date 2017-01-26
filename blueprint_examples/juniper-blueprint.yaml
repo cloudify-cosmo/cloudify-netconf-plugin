@@ -115,7 +115,7 @@ node_templates:
                     private: {}
               - action: xnm@load-configuration
                 # error will be placed inside of this tag
-                path_for_error: load-configuration-results
+                deep_error_check: true
                 payload:
                     _@@action: merge
                     _@@format: xml

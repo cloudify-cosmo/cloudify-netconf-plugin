@@ -71,6 +71,7 @@ node_templates:
         create:
           inputs:
             strict_check: false
+            deep_error_check: true
             template: xmls/vlan_description.xmls
             params:
                 description: some_new_description

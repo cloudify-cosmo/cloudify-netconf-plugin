@@ -151,6 +151,54 @@ class XmlRpcTest(unittest.TestCase):
 
         return nc_conn
 
+    def test__search_error(self):
+        """check deep search"""
+        # we have text as node value
+        rpc._search_error("Some Line", '?')
+
+        # we have some list as node
+        rpc._search_error(["Some Line"], '?')
+
+        rpc._search_error([{"node_name": "Some Line"}], '?')
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._search_error([{"rpc-error": {}}], '?')
+
+        # we have some dict as node
+        rpc._search_error({"node_name": "Some Line"}, '?')
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._search_error({"a": {"rpc-error": {}}}, '?')
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._search_error({"a": [{"rpc-error": {}}]}, '?')
+
+        rpc._search_error({
+            "a": [{
+                "rpc-error": [{
+                    'error-severity': 'warning'
+                }]
+            }]
+        }, '?')
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._search_error({
+                "a": [{
+                    "rpc-error": [{
+                        'error-severity': 'error'
+                    }]
+                }]
+            }, '?')
+
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._search_error({
+                "a": [{
+                    "b@rpc-error": [{
+                        'b@error-severity': 'error'
+                    }]
+                }]
+            }, '?')
+
     def test_parse_response(self):
         """check parse response code"""
         xml = self.CORRECT_REPLY
@@ -244,7 +292,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(
-                xmlns, netconf_namespace, xml, True, "uncommon"
+                xmlns, netconf_namespace, xml, True, True
             )
 
         # error in reply with namespace
@@ -287,7 +335,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc._parse_response(
-                xmlns, netconf_namespace, xml, True, "uncommon"
+                xmlns, netconf_namespace, xml, True, True
             )
 
         # check issues with xml
@@ -353,7 +401,8 @@ class XmlRpcTest(unittest.TestCase):
 
         rpc._run_templates(
             nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
-            {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"}, False
+            {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"},
+            False, False
         )
 
         nc_conn.send.assert_called_with(
