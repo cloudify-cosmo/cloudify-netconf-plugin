@@ -499,14 +499,14 @@ def run(**kwargs):
     user = netconf_auth.get('user')
     password = netconf_auth.get('password')
     key_content = netconf_auth.get('key_content')
-    port = netconf_auth.get('port', 830)
+    port = int(netconf_auth.get('port', 830))
     ip = netconf_auth.get('ip')
     # if node contained in some other node, try to overwrite ip
     if not ip:
         ip = ctx.instance.host_ip
         ctx.logger.info("Used host from container: %s" % ip)
     # check minimal amout of credentials
-    if not ip or not user or (not password and not key_content):
+    if not port or not ip or not user or (not password and not key_content):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
         )
@@ -526,7 +526,7 @@ def run(**kwargs):
     capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
-    ctx.logger.info("use %s@%s for login" % (user, ip))
+    ctx.logger.info("use %s@%s:%s for login" % (user, ip, port))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
