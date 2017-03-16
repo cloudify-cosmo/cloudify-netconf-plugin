@@ -400,12 +400,11 @@ def _run_templates(netconf, templates, template_params, netconf_namespace,
         template = template.strip()
         if not template:
             continue
-
+        template_engine = Template(template)
         if template_params:
-            template_engine = Template(template)
             rpc_string = template_engine.render(template_params)
         else:
-            rpc_string = template
+            rpc_string = template_engine.render({})
 
         _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
                         strict_check, deep_error_check)
