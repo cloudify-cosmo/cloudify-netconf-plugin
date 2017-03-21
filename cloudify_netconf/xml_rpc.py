@@ -394,17 +394,22 @@ def _update_data(data, operation, netconf_namespace, back):
 def _run_templates(netconf, templates, template_params, netconf_namespace,
                    xmlns, strict_check, deep_error_check):
     for template in templates:
+        # initially empty
         if not template:
             continue
 
         template = template.strip()
+        # empty after strip
         if not template:
             continue
+
         template_engine = Template(template)
-        if template_params:
-            rpc_string = template_engine.render(template_params)
-        else:
-            rpc_string = template_engine.render({})
+        if not template_params:
+            template_params = {}
+
+        # supply ctx for template for reuse runtime params
+        template_params['ctx'] = ctx
+        rpc_string = template_engine.render(template_params)
 
         _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
                         strict_check, deep_error_check)
