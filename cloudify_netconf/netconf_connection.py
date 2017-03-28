@@ -71,7 +71,10 @@ class connection(object):
     def _send_1_0(self, xml):
         """send xml string with NETCONF_1_0_END by connection"""
         if xml:
-            self.chan.send(xml + NETCONF_1_0_END)
+            message = xml + NETCONF_1_0_END
+            curr_pos = 0
+            while curr_pos < len(message):
+                curr_pos += self.chan.send(message[curr_pos:])
         while self.buff.find(NETCONF_1_0_END) == -1:
             self.buff += self.chan.recv(8192)
         package_end = self.buff.find(NETCONF_1_0_END)
@@ -85,7 +88,9 @@ class connection(object):
             message = "\n#" + str(len(xml)) + "\n"
             message += xml
             message += "\n##\n"
-            self.chan.send(message)
+            curr_pos = 0
+            while curr_pos < len(message):
+                curr_pos += self.chan.send(message[curr_pos:])
         get_everything = False
         response = ""
         while not get_everything:

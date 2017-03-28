@@ -485,5 +485,6 @@ class UtilsMockTest(unittest.TestCase):
                     parent, xmlns, "/a", "<d>a</d>", "<d>a</d>"
                 )
 
+
 if __name__ == '__main__':
     unittest.main()

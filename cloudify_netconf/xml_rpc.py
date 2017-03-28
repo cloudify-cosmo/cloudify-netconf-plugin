@@ -305,6 +305,19 @@ def _gen_relaxng_with_schematron(dsdl, operation=None):
     return rng_txt, sch_txt, xpath
 
 
+def _partially_print(text):
+    """Dump by 30 lines only"""
+    lines = text.split("\n")
+    full_len = len(lines)
+    while len(lines):
+        message = "%s / %s lines\n" % (
+            str(full_len - len(lines)),  str(full_len)
+        )
+        message += "\n".join(lines[:25])
+        ctx.logger.info(message)
+        lines = lines[25:]
+
+
 def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
                     strict_check, deep_error_check):
     ctx.logger.info(
@@ -312,10 +325,10 @@ def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
             strict_check, deep_error_check
         )
     )
-    ctx.logger.info("i sent: " + rpc_string)
+    _partially_print("i sent: " + rpc_string)
     # cisco send new line before package, so need strip
     response = netconf.send(rpc_string).strip()
-    ctx.logger.info("i recieved:" + response)
+    _partially_print("i recieved:" + response)
 
     response_dict = _parse_response(
         xmlns, netconf_namespace, response, strict_check, deep_error_check
@@ -544,6 +557,8 @@ def run(**kwargs):
     if _server_support_1_1(xmlns, netconf_namespace, capabilities):
         ctx.logger.info("i will use version 1.1 of netconf protocol")
         netconf.current_level = netconf_connection.NETCONF_1_1_CAPABILITY
+    else:
+        ctx.logger.info("i will use version 1.0 of netconf protocol")
 
     strict_check = kwargs.get('strict_check', True)
     if 'lock' in kwargs:
