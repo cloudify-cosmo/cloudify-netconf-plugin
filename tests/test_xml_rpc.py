@@ -161,16 +161,16 @@ class XmlRpcTest(unittest.TestCase):
 
         rpc._search_error([{"node_name": "Some Line"}], '?')
 
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error([{"rpc-error": {}}], '?')
 
         # we have some dict as node
         rpc._search_error({"node_name": "Some Line"}, '?')
 
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error({"a": {"rpc-error": {}}}, '?')
 
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error({"a": [{"rpc-error": {}}]}, '?')
 
         rpc._search_error({
@@ -181,7 +181,7 @@ class XmlRpcTest(unittest.TestCase):
             }]
         }, '?')
 
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error({
                 "a": [{
                     "rpc-error": [{
@@ -190,7 +190,7 @@ class XmlRpcTest(unittest.TestCase):
                 }]
             }, '?')
 
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error({
                 "a": [{
                     "b@rpc-error": [{
@@ -253,7 +253,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
         # warning in reply
@@ -276,7 +276,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
         # error in reply in uncommon place
@@ -290,7 +290,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(
                 xmlns, netconf_namespace, xml, True, True
             )
@@ -304,7 +304,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(xmlns, netconf_namespace, xml, True)
 
         # warning in reply with namespace
@@ -333,7 +333,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        with self.assertRaises(cfy_exc.NonRecoverableError):
+        with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(
                 xmlns, netconf_namespace, xml, True, True
             )
@@ -402,7 +402,7 @@ class XmlRpcTest(unittest.TestCase):
         rpc._run_templates(
             nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
             {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"},
-            False, False
+            False, False, None  # no check/no logs
         )
 
         nc_conn.send.assert_called_with(
@@ -521,7 +521,9 @@ class XmlRpcTest(unittest.TestCase):
             'netconf_auth': {
                 "user": "me",
                 "password": "secret",
-                "ip": "super_secret"
+                "ip": "super_secret",
+                # save logs
+                "store_logs": True
             },
             'metadata': {
                 'xmlns': {
@@ -671,6 +673,12 @@ class XmlRpcTest(unittest.TestCase):
                                 }
                             }]
                         )
+
+    def test__write_to_log(self):
+        # check that we dont die in case when we can't write log
+        fake_ctx = cfy_mocks.MockCloudifyContext()
+        current_ctx.set(fake_ctx)
+        rpc._write_to_log("/proc/cpuinfo/error_file", "Message?")
 
     def test_gen_relaxng_with_schematron(self):
         # skip get config validation

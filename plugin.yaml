@@ -114,10 +114,18 @@ node_types:
       netconf_auth:
         # login credentials for netconf server
         default:
+          # netconf user
           user: ""
+          # optional, netconf password
           password: ""
+          # optional, netconf device ip
           ip: ""
+          # optional, netconf user key
           key_content: ""
+          # optional, netconf port
+          port: 830
+          # optional, save communication logs
+          store_logs: false
 
       metadata:
         # list of namesapaces and capabilities
