@@ -530,7 +530,9 @@ def run(**kwargs):
     password = netconf_auth.get('password')
     key_content = netconf_auth.get('key_content')
     port = int(netconf_auth.get('port', 830))
-    ip = netconf_auth.get('ip')
+    ip_list = netconf_auth.get('ip')
+    if isinstance(ip_list, basestring):
+        ip_list = [ip_list]
     # save logs to debug file
     log_file_name = None
     if netconf_auth.get('store_logs'):
@@ -542,11 +544,13 @@ def run(**kwargs):
         )
 
     # if node contained in some other node, try to overwrite ip
-    if not ip:
-        ip = ctx.instance.host_ip
-        ctx.logger.info("Used host from container: %s" % ip)
+    if not ip_list:
+        ip_list = [ctx.instance.host_ip]
+        ctx.logger.info("Used host from container: %s" % str(ip_list))
     # check minimal amout of credentials
-    if not port or not ip or not user or (not password and not key_content):
+    if not port or not ip_list or not user or (
+        not password and not key_content
+    ):
         raise cfy_exc.NonRecoverableError(
             "please check your credentials"
         )
@@ -566,7 +570,7 @@ def run(**kwargs):
     capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
-    ctx.logger.info("use %s@%s:%s for login" % (user, ip, port))
+    ctx.logger.info("use %s@%s:%s for login" % (user, ip_list, port))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
@@ -574,9 +578,21 @@ def run(**kwargs):
     _write_to_log(log_file_name, hello_string)
 
     netconf = netconf_connection.connection()
-    capabilities = netconf.connect(
-        ip, user, hello_string, password, key_content, port
-    )
+    for ip in ip_list:
+        try:
+            capabilities = netconf.connect(
+                ip, user, hello_string, password, key_content, port
+            )
+            ctx.logger.info("Will be used: " + ip)
+            break
+        except Exception as ex:
+            ctx.logger.info("Can't connect to %s with %s" % (
+                repr(ip), str(ex)
+            ))
+    else:
+        raise cfy_exc.NonRecoverableError(
+            "please check your ip list"
+        )
 
     ctx.logger.info("i recieved: " + capabilities)
     _write_to_log(log_file_name, capabilities)

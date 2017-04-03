@@ -515,8 +515,6 @@ class XmlRpcTest(unittest.TestCase):
         with self.assertRaises(cfy_exc.NonRecoverableError):
             rpc.run(ctx=fake_ctx, calls=[{'action': 'get'}])
 
-        nc_conn = self._get_fake_nc_connect()
-
         node.properties = {
             'netconf_auth': {
                 "user": "me",
@@ -534,6 +532,28 @@ class XmlRpcTest(unittest.TestCase):
                 "a": "b"
             }
         }
+
+        # check usage of ip list
+        nc_conn = mock.Mock()
+        nc_conn.connect = mock.MagicMock(
+            side_effect=cfy_exc.NonRecoverableError("Check Exception")
+        )
+
+        with mock.patch(
+            'cloudify_netconf.netconf_connection.connection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            with self.assertRaises(cfy_exc.NonRecoverableError):
+                # we have empty action
+                rpc.run(ctx=fake_ctx, calls=[{'unknow': 'get'}])
+            nc_conn.connect.assert_called_with(
+                'super_secret', 'me', hello_message, 'secret', None, 830
+            )
+            fake_ctx.get_resource.assert_not_called()
+
+        # connect without exception
+        nc_conn = self._get_fake_nc_connect()
+
         with mock.patch(
             'cloudify_netconf.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
