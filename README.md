@@ -142,7 +142,7 @@ node_templates:
       netconf_auth:
         user: <user on device>
         password: <password on device, optional>
-        ip: <ip for device>
+        ip: <ip for device or list of ip's if have failback ip's>
         key_content: <private key content>
         port: <port for device, optional by default 830>
         store_logs: <store all communication logs, optional by default false>
@@ -298,3 +298,4 @@ to `correct` struct that can be later used in payload. Please look to
 `cloudify.nodes.Compute` node in relationships with type
 `cloudify.relationships.contained_in`. In such case as `ip` will be used
 `ip` from compute node.
+* as value `ip` in `netconf_auth` can be list of `ip's` if you have failback.
