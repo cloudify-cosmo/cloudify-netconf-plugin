@@ -3,7 +3,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/cloudify-cosmo/cloudify-netconf-plugin/archive/master.zip
     package_name: cloudify-netconf-plugin
-    package_version: '0.1'
+    package_version: '0.2'
 
 data_types:
 
@@ -114,10 +114,18 @@ node_types:
       netconf_auth:
         # login credentials for netconf server
         default:
+          # netconf user
           user: ""
+          # optional, netconf password
           password: ""
+          # optional, netconf device ip
           ip: ""
+          # optional, netconf user key
           key_content: ""
+          # optional, netconf port
+          port: 830
+          # optional, save communication logs
+          store_logs: false
 
       metadata:
         # list of namesapaces and capabilities

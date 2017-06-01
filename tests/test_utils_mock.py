@@ -190,6 +190,32 @@ class UtilsMockTest(unittest.TestCase):
             """d>3</d></c><b ns0:m="g">b</b></a></rpc>"""
         )
 
+    def test_dict_to_xml_raw_include(self):
+        """test minimal dict with raw insert values"""
+        xmlns = {
+            '_': utils.NETCONF_NAMESPACE
+        }
+
+        xml_node = utils.generate_xml_node(
+            {
+                'a': {
+                    '_!_': "<g><a n='1'></a><d n='2'></d><c n='3'></c></g>"
+                }
+            },
+            xmlns,
+            'rpc'
+        )
+
+        xml_node_string = etree.tostring(
+            xml_node, pretty_print=False
+        )
+
+        self.assertEqual(
+            xml_node_string,
+            """<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:""" +
+            """1.0"><a><g><a n="1"/><d n="2"/><c n="3"/></g></a></rpc>"""
+        )
+
     def test_dict_to_xml_turing(self):
         """test turing dict struct with tag list and attibutes"""
         xmlns = {
@@ -458,6 +484,7 @@ class UtilsMockTest(unittest.TestCase):
                 utils.xml_validate(
                     parent, xmlns, "/a", "<d>a</d>", "<d>a</d>"
                 )
+
 
 if __name__ == '__main__':
     unittest.main()

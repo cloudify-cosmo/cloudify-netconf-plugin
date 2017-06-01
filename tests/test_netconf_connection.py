@@ -27,7 +27,8 @@ class NetConfConnectionMockTest(unittest.TestCase):
         netconf.ssh.close = mock.MagicMock()
         netconf.chan = mock.Mock()
         netconf.chan.close = mock.MagicMock()
-        netconf.chan.send = mock.MagicMock()
+        # 256 - send by 256 bytes
+        netconf.chan.send = mock.MagicMock(return_value=256)
         netconf.chan.recv = mock.MagicMock(
             return_value=netconf_connection.NETCONF_1_0_END
         )
