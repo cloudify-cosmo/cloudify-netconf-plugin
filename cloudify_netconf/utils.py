@@ -196,6 +196,9 @@ def _short_names(name, xmlns, nsmap=None):
 
 
 def _node_to_dict(parent, xml_node, xmlns):
+    if isinstance(xml_node, etree._Comment):
+        return
+
     name = _short_names(xml_node.tag, xmlns, xml_node.nsmap)
     if not xml_node.getchildren() and not xml_node.attrib:
         # we dont support text inside of node
