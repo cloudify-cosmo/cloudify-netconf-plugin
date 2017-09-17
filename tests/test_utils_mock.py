@@ -74,6 +74,7 @@ class UtilsMockTest(unittest.TestCase):
                 xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
             >
                 <b xmlns="something">b</b>
+                <!-- Comment, ignore it -->
             </a>
         """
         xmlns = {
