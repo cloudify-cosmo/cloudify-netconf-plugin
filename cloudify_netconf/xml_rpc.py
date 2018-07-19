@@ -178,6 +178,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
         # default namespace can't be not netconf 1.0
         reply = xml_dict[netconf_namespace + '@rpc-reply']
     if not reply:
+        ctx.logger.debug("Missing reply key: {0}".format(xml_dict))
         raise cfy_exc.NonRecoverableError(
             "unexpected reply struct"
         )
