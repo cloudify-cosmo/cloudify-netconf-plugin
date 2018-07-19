@@ -181,7 +181,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
              if 'rpc-reply' in k][0]
     except IndexError:
         raise cfy_exc.NonRecoverableError(
-            'unexpected reply struct'.format(xml_dict)
+            'unexpected reply struct: {0}'.format(xml_dict)
         )
 
     _check_reply_for_errors(reply, netconf_namespace, deep_error_check)
