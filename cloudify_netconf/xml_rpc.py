@@ -91,12 +91,11 @@ def _have_error(reply, netconf_namespace):
     # https://tools.ietf.org/html/rfc6241#section-4.3
     error = None
 
-    if 'rpc-error' in reply:
-        errors = reply['rpc-error']
-    elif (netconf_namespace + '@rpc-error') in reply:
-        # default namespace can't be not netconf 1.0
-        errors = reply[netconf_namespace + '@rpc-error']
-    else:
+    errors = \
+        [v for k, v in reply.viewitems()
+         if 'rpc-error' in k]
+
+    if not errors:
         return
 
     if not isinstance(errors, list):
@@ -171,16 +170,18 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
         xml_dict, xml_node,
         xmlns
     )
-    reply = None
-    if 'rpc-reply' in xml_dict:
-        reply = xml_dict['rpc-reply']
-    elif (netconf_namespace + '@rpc-reply') in xml_dict:
-        # default namespace can't be not netconf 1.0
-        reply = xml_dict[netconf_namespace + '@rpc-reply']
-    if not reply:
-        ctx.logger.debug("Missing reply key: {0}".format(xml_dict))
+
+    try:
+        if 'rpc-reply' not in xml_dict or \
+                (netconf_namespace + '@rpc-reply') not in xml_dict:
+            ctx.logger.error(
+                'Unexpected key in response: {0}'.format(xml_dict))
+        reply = \
+            [v for k, v in xml_dict.viewitems()
+             if 'rpc-reply' in k][0]
+    except IndexError:
         raise cfy_exc.NonRecoverableError(
-            "unexpected reply struct"
+            'unexpected reply struct'.format(xml_dict)
         )
 
     _check_reply_for_errors(reply, netconf_namespace, deep_error_check)
