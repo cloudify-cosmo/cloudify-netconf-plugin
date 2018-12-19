@@ -15,17 +15,17 @@ from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
-    version='0.2.1',
+    version='0.3.0',
     description='Cloudify Netconf plugin',
-    author='Denis Pauk',
-    author_email='pauk.denis@gmail.com',
+    author='Cloudify Platform Ltd.',
+    author_email='hello@getcloudify.org',
     license='LICENSE',
     packages=['cloudify_netconf'],
     install_requires=[
         'cloudify-plugins-common>=3.3',
         'lxml',
-        'paramiko',  # for ssh netconf connection
         "Jinja2>=2.7.2",  # for template support
+        'cloudify-utilities-plugins-sdk==0.0.1',  # ssh connection
     ],
     data_files=[
         ('share/netconf/xslt', [

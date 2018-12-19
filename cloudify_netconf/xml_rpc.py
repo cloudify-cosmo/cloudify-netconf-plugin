@@ -16,7 +16,7 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 
 from jinja2 import Template
-import cloudify_netconf.netconf_connection as netconf_connection
+import cloudify_terminal_sdk.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 from lxml import etree
 import os
@@ -86,21 +86,27 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
     return False
 
 
-def _have_error(reply, netconf_namespace):
+def _have_error(reply):
     # error check
     # https://tools.ietf.org/html/rfc6241#section-4.3
     error = None
 
-    errors = \
-        [v for k, v in reply.viewitems()
-         if 'rpc-error' in k]
+    errors = []
+    for k in reply:
+        # skip attributes
+        if k[:2] == "_@":
+            continue
+        if 'rpc-error' == k or '@rpc-error' == k[-len('@rpc-error'):]:
+            # we can have list of rpc-errors with different namespaces
+            if not isinstance(reply[k], list):
+                # only one error with such namespace
+                errors.append(reply[k])
+            else:
+                # we can combine several errors lists
+                errors += reply[k]
 
     if not errors:
         return
-
-    if not isinstance(errors, list):
-        # case when we have only one error struct
-        errors = [errors]
 
     for error in errors:
         if not error:
@@ -110,32 +116,41 @@ def _have_error(reply, netconf_namespace):
             )
 
         # server can send warning as error, lets check
-        error_severity = 'error'
-        if 'error-severity' in error:
-            error_severity = error['error-severity']
-        elif (netconf_namespace + '@error-severity') in error:
-            error_severity = error[netconf_namespace + '@error-severity']
-        if error_severity != 'warning':
-            raise cfy_exc.RecoverableError(
-                "We have error in reply" + str(errors)
-            )
+        error_severities = []
+        for k in error:
+            # skip attributes
+            if k[:2] == "_@":
+                continue
+            if (
+                'error-severity' == k or
+                '@error-severity' == k[-len('@error-severity'):]
+            ):
+                # and error severity that we found
+                error_severities.append(error[k])
+        for error_severity in error_severities:
+            if error_severity != 'warning':
+                raise cfy_exc.RecoverableError(
+                    "We have error in reply: {}".format(repr(errors)))
 
 
 def _search_error(reply, netconf_namespace):
-    # recursive search for error tag, slow and dangerous
-    if isinstance(reply, basestring):
-        return
-    elif isinstance(reply, list):
-        for tag in reply:
-            _search_error(tag, netconf_namespace)
-    elif isinstance(reply, dict):
-        _have_error(reply, netconf_namespace)
-        for tag_name in reply:
-            _search_error(reply[tag_name], netconf_namespace)
-            if tag_name.find("@rpc-error") != -1 and tag_name[:2] != "_@":
-                # repack to detect error with different namespace
-                namespace = tag_name[:tag_name.find("@rpc-error")]
-                _have_error({'rpc-error': reply[tag_name]}, namespace)
+    try:
+        # recursive search for error tag, slow and dangerous
+        if isinstance(reply, basestring):
+            return
+        elif isinstance(reply, list):
+            for tag in reply:
+                _search_error(tag, netconf_namespace)
+        elif isinstance(reply, dict):
+            _have_error(reply)
+            for tag_name in reply:
+                _search_error(reply[tag_name], netconf_namespace)
+                if tag_name.find("@rpc-error") != -1 and tag_name[:2] != "_@":
+                    # repack to detect error with different namespace
+                    _have_error({'rpc-error': reply[tag_name]})
+    except netconf_connection.NonRecoverableError as e:
+        # use str instead, for fully hide traceback and orignal exception name
+        raise cfy_exc.RecoverableError(str(e))
 
 
 def _check_reply_for_errors(reply, netconf_namespace, deep_error_check=False):
@@ -145,7 +160,7 @@ def _check_reply_for_errors(reply, netconf_namespace, deep_error_check=False):
         # but can be in wild life
         _search_error(reply, netconf_namespace)
     else:
-        _have_error(reply, netconf_namespace)
+        _have_error(reply)
 
     return reply
 

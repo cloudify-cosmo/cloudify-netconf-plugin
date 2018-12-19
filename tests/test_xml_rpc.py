@@ -14,7 +14,7 @@
 from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
 from cloudify.state import current_ctx
-import cloudify_netconf.netconf_connection as netconf_connection
+import cloudify_terminal_sdk.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
 import mock
@@ -181,6 +181,22 @@ class XmlRpcTest(unittest.TestCase):
             }]
         }, '?')
 
+        rpc._search_error({
+            "a": [{
+                '_@b@error-severity': 'error',
+                "b@rpc-error": [{
+                    '_@b@error-severity': 'error',
+                    'b@error-severity': 'warning',
+                }, {
+                    'b@error-severity': 'warning'
+                }]
+            }, {
+                "rpc-error": [{
+                    'error-severity': 'warning'
+                }]
+            }]
+        }, '?')
+
         with self.assertRaises(cfy_exc.RecoverableError):
             rpc._search_error({
                 "a": [{
@@ -202,6 +218,8 @@ class XmlRpcTest(unittest.TestCase):
     def test_parse_response(self):
         """check parse response code"""
         xml = self.CORRECT_REPLY
+        fake_ctx = cfy_mocks.MockCloudifyContext()
+        current_ctx.set(fake_ctx)
         netconf_namespace, xmlns = utils.update_xmlns({})
         response = rpc._parse_response(xmlns, netconf_namespace, xml, True)
         self.assertEqual(
@@ -453,7 +471,7 @@ class XmlRpcTest(unittest.TestCase):
             }
         }
         with mock.patch(
-            'cloudify_netconf.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
         ):
             # we have empty action
@@ -540,7 +558,7 @@ class XmlRpcTest(unittest.TestCase):
         )
 
         with mock.patch(
-            'cloudify_netconf.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
         ):
             with self.assertRaises(cfy_exc.NonRecoverableError):
@@ -555,7 +573,7 @@ class XmlRpcTest(unittest.TestCase):
         nc_conn = self._get_fake_nc_connect()
 
         with mock.patch(
-            'cloudify_netconf.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
         ):
             # we have empty action
@@ -630,7 +648,7 @@ class XmlRpcTest(unittest.TestCase):
         node.properties['netconf_auth']["ip"] = None
         instance.host_ip = "ip_from_runtime"
         with mock.patch(
-            'cloudify_netconf.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
         ):
             rpc.run(ctx=fake_ctx, calls=[{
@@ -650,7 +668,7 @@ class XmlRpcTest(unittest.TestCase):
             return_value=self.CORRECT_HELLO_REPLY
         )
         with mock.patch(
-            'cloudify_netconf.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.connection',
             mock.MagicMock(return_value=nc_conn)
         ):
             node.properties['metadata']['dsdl'] = "<a></a>"
