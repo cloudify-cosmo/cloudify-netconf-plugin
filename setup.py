@@ -18,7 +18,7 @@ setup(
     version='0.3.0',
     description='Cloudify Netconf plugin',
     author='Cloudify Platform Ltd.',
-    author_email='hello@getcloudify.org',
+    author_email='hello@cloudify.co',
     license='LICENSE',
     packages=['cloudify_netconf'],
     install_requires=[
