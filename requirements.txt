@@ -1,5 +1,0 @@
-cloudify-plugins-common>=3.3
-lxml
-nose
-mock
-coverage

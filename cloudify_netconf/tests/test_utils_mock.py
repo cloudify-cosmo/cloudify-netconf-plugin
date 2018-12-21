@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cloudify import exceptions as cfy_exc
-import cloudify_netconf.utils as utils
 from lxml import etree
 import mock
 import unittest
+
+from cloudify import exceptions as cfy_exc
+import cloudify_netconf.utils as utils
 
 
 class UtilsMockTest(unittest.TestCase):
@@ -60,11 +61,11 @@ class UtilsMockTest(unittest.TestCase):
         """<rfc6020:rpc xmlns:_turing_="http://example.net/turing-m""" +
         """achine" xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:ba""" +
         """se:1.0" xmlns:turing="a"><rfc6020:rpc rfc6020:message-id""" +
-        """="some_id"><rfc6020:get><rfc6020:source><rfc6020:running""" +
-        """/></rfc6020:source><rfc6020:filter rfc6020:type="subtre""" +
-        """e"><_turing_:turing-machine><_turing_:transition-functio""" +
-        """n/></_turing_:turing-machine></rfc6020:filter></rfc6020:""" +
-        """get></rfc6020:rpc></rfc6020:rpc>"""
+        """="some_id"><rfc6020:get><rfc6020:filter rfc6020:type="su""" +
+        """btree"><_turing_:turing-machine><_turing_:transition-fun""" +
+        """ction/></_turing_:turing-machine></rfc6020:filter><rfc60""" +
+        """20:source><rfc6020:running/></rfc6020:source></rfc6020:g""" +
+        """et></rfc6020:rpc></rfc6020:rpc>"""
     )
 
     def test_xml_to_dict_net_namespace(self):
@@ -118,7 +119,7 @@ class UtilsMockTest(unittest.TestCase):
         result = {}
         utils.generate_dict_node(result, etree.XML(xml), xmlns)
         # check dict
-        self.assertEqual(
+        self.assertDictEqual(
             self.SIMPLE_DICT,
             result
         )
@@ -187,8 +188,8 @@ class UtilsMockTest(unittest.TestCase):
             xml_node_string,
             """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netc""" +
             """onf:base:1.0"><a xmlns:ns0="urn:ietf:params:xml:ns:n""" +
-            """etconf:base:1.0"><c nm:nm="update"><d>1</d><d>2</d><""" +
-            """d>3</d></c><b ns0:m="g">b</b></a></rpc>"""
+            """etconf:base:1.0"><b ns0:m="g">b</b><c nm:nm="update">""" +
+            """<d>1</d><d>2</d><d>3</d></c></a></rpc>"""
         )
 
     def test_dict_to_xml_raw_include(self):

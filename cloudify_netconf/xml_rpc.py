@@ -134,23 +134,19 @@ def _have_error(reply):
 
 
 def _search_error(reply, netconf_namespace):
-    try:
-        # recursive search for error tag, slow and dangerous
-        if isinstance(reply, basestring):
-            return
-        elif isinstance(reply, list):
-            for tag in reply:
-                _search_error(tag, netconf_namespace)
-        elif isinstance(reply, dict):
-            _have_error(reply)
-            for tag_name in reply:
-                _search_error(reply[tag_name], netconf_namespace)
-                if tag_name.find("@rpc-error") != -1 and tag_name[:2] != "_@":
-                    # repack to detect error with different namespace
-                    _have_error({'rpc-error': reply[tag_name]})
-    except netconf_connection.NonRecoverableError as e:
-        # use str instead, for fully hide traceback and orignal exception name
-        raise cfy_exc.RecoverableError(str(e))
+    # recursive search for error tag, slow and dangerous
+    if isinstance(reply, basestring):
+        return
+    elif isinstance(reply, list):
+        for tag in reply:
+            _search_error(tag, netconf_namespace)
+    elif isinstance(reply, dict):
+        _have_error(reply)
+        for tag_name in reply:
+            _search_error(reply[tag_name], netconf_namespace)
+            if tag_name.find("@rpc-error") != -1 and tag_name[:2] != "_@":
+                # repack to detect error with different namespace
+                _have_error({'rpc-error': reply[tag_name]})
 
 
 def _check_reply_for_errors(reply, netconf_namespace, deep_error_check=False):
@@ -350,7 +346,11 @@ def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
     _write_to_log(log_file_name, rpc_string)
 
     # cisco send new line before package, so need strip
-    response = netconf.send(rpc_string).strip()
+    try:
+        response = netconf.send(rpc_string).strip()
+    except netconf_connection.NonRecoverableError as e:
+        # use str instead, for fully hide traceback and orignal exception name
+        raise cfy_exc.NonRecoverableError(str(e))
 
     ctx.logger.info("i recieved:" + response)
     _write_to_log(log_file_name, response)

@@ -764,6 +764,17 @@ class XmlRpcTest(unittest.TestCase):
                 )
             )
 
+    def test_run_one_string(self):
+        fake_netconf = mock.Mock()
+        fake_netconf.send = mock.Mock(
+            side_effect=netconf_connection.NonRecoverableError(
+                "broken connection"))
+        fake_ctx = cfy_mocks.MockCloudifyContext()
+        current_ctx.set(fake_ctx)
+        with self.assertRaises(cfy_exc.NonRecoverableError):
+            rpc._run_one_string(fake_netconf, "<xml/>", {}, "abc", False,
+                                False)
+
 
 if __name__ == '__main__':
     unittest.main()

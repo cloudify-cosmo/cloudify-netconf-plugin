@@ -11,9 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cloudify import exceptions as cfy_exc
 from lxml import etree
 from lxml import isoschematron
+
+from cloudify import exceptions as cfy_exc
 
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
@@ -89,7 +90,7 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
 
 
 def _gen_xml(parent, properties, xmlns, namespace, nsmap):
-    for node in properties:
+    for node in sorted(properties.keys()):
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:
