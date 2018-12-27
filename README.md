@@ -299,3 +299,7 @@ to `correct` struct that can be later used in payload. Please look to
 `cloudify.relationships.contained_in`. In such case as `ip` will be used
 `ip` from compute node.
 * as value `ip` in `netconf_auth` can be list of `ip's` if you have failback.
+
+## Versions:
+
+Look to [ChangeLog](CHANGELOG.txt).

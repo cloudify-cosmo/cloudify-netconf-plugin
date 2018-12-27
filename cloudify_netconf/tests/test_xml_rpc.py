@@ -15,6 +15,7 @@ from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
 from cloudify.state import current_ctx
 import cloudify_terminal_sdk.netconf_connection as netconf_connection
+from cloudify_common_sdk import exceptions
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
 import mock
@@ -420,7 +421,7 @@ class XmlRpcTest(unittest.TestCase):
         rpc._run_templates(
             nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
             {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"},
-            False, False, None  # no check/no logs
+            False, False  # no checks
         )
 
         nc_conn.send.assert_called_with(
@@ -471,7 +472,7 @@ class XmlRpcTest(unittest.TestCase):
             }
         }
         with mock.patch(
-            'cloudify_terminal_sdk.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
         ):
             # we have empty action
@@ -558,7 +559,7 @@ class XmlRpcTest(unittest.TestCase):
         )
 
         with mock.patch(
-            'cloudify_terminal_sdk.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
         ):
             with self.assertRaises(cfy_exc.NonRecoverableError):
@@ -573,7 +574,7 @@ class XmlRpcTest(unittest.TestCase):
         nc_conn = self._get_fake_nc_connect()
 
         with mock.patch(
-            'cloudify_terminal_sdk.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
         ):
             # we have empty action
@@ -648,7 +649,7 @@ class XmlRpcTest(unittest.TestCase):
         node.properties['netconf_auth']["ip"] = None
         instance.host_ip = "ip_from_runtime"
         with mock.patch(
-            'cloudify_terminal_sdk.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
         ):
             rpc.run(ctx=fake_ctx, calls=[{
@@ -668,7 +669,7 @@ class XmlRpcTest(unittest.TestCase):
             return_value=self.CORRECT_HELLO_REPLY
         )
         with mock.patch(
-            'cloudify_terminal_sdk.netconf_connection.connection',
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
         ):
             node.properties['metadata']['dsdl'] = "<a></a>"
@@ -711,12 +712,6 @@ class XmlRpcTest(unittest.TestCase):
                                 }
                             }]
                         )
-
-    def test__write_to_log(self):
-        # check that we dont die in case when we can't write log
-        fake_ctx = cfy_mocks.MockCloudifyContext()
-        current_ctx.set(fake_ctx)
-        rpc._write_to_log("/proc/cpuinfo/error_file", "Message?")
 
     def test_gen_relaxng_with_schematron(self):
         # skip get config validation
@@ -767,8 +762,7 @@ class XmlRpcTest(unittest.TestCase):
     def test_run_one_string(self):
         fake_netconf = mock.Mock()
         fake_netconf.send = mock.Mock(
-            side_effect=netconf_connection.NonRecoverableError(
-                "broken connection"))
+            side_effect=exceptions.NonRecoverableError("broken connection"))
         fake_ctx = cfy_mocks.MockCloudifyContext()
         current_ctx.set(fake_ctx)
         with self.assertRaises(cfy_exc.NonRecoverableError):
