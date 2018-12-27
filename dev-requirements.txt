@@ -1,4 +1,4 @@
 lxml
 cloudify-plugins-common==3.4.2
-https://github.com/cloudify-incubator/cloudify-utilities-plugins-sdk/archive/0.0.1.zip
+https://github.com/cloudify-incubator/cloudify-utilities-plugins-sdk/archive/0.0.2.zip
 

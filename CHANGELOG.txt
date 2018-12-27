@@ -1,0 +1,23 @@
+releases:
+
+  v0.3.1:
+  - Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf
+    low level connection.
+  - Support early close connection before we fully read message.
+
+  v0.3.0:
+  - Use cloudify-utilities-plugins-sdk==0.0.1 for manage netconf
+    low level connection.
+
+  v0.2.1:
+  - Ignore comments in xml
+  - ignore namespaces in erorr processing
+
+  v0.2.0:
+  - Juniper devices support
+  - Cisco devices support
+  - Provide ctx in template
+  - Add "raw insert" to xml
+  - Suport ip list failback
+
+  v0.1.0: Initial release
