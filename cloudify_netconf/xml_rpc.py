@@ -16,12 +16,14 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 
 from jinja2 import Template
+from urlparse import urlparse
 from cloudify_common_sdk import exceptions
 import cloudify_terminal_sdk.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 from lxml import etree
 import os
 import time
+import requests
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
@@ -183,7 +185,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
     )
 
     try:
-        if 'rpc-reply' not in xml_dict or \
+        if 'rpc-reply' not in xml_dict and \
                 (netconf_namespace + '@rpc-reply') not in xml_dict:
             ctx.logger.error(
                 'Unexpected key in response: {0}'.format(xml_dict))
@@ -507,10 +509,21 @@ def run(**kwargs):
 
     calls = kwargs.get('calls', [])
 
+    templates_urls = kwargs.get('templates', [])
     template = kwargs.get('template')
+
     templates = []
+    for tmpl_loc in templates_urls:
+        parse_result = urlparse(tmpl_loc)
+        # template location is url with scheme specified
+        if all([parse_result.scheme, parse_result.path]):
+            templates.append(requests.get(tmpl_loc).content)
+        # template location is local blueprint resource 
+        else:
+            templates.append(ctx.get_resource(tmpl_loc))
+
     if template:
-        templates = ctx.get_resource(template).split("]]>]]>")
+        templates.extend(ctx.get_resource(template).split("]]>]]>"))
 
     if not calls and not templates:
         ctx.logger.info("Please provide calls or template")

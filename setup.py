@@ -22,10 +22,11 @@ setup(
     license='LICENSE',
     packages=['cloudify_netconf'],
     install_requires=[
-        'cloudify-plugins-common>=3.3',
+        'cloudify-common>=4.6',
         'lxml',
+        'requests',
         "Jinja2>=2.7.2",  # for template support
-        'cloudify-utilities-plugins-sdk==0.0.2',  # ssh connection
+        'cloudify-utilities-plugins-sdk==0.0.9',  # ssh connection
     ],
     data_files=[
         ('share/netconf/xslt', [
