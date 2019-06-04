@@ -506,11 +506,11 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
 def _get_template(template_location):
     parse_result = urlparse(template_location)
     if all([parse_result.scheme, parse_result.path]):
-       if parse_result.scheme == 'file':
-           with open(parse_result.path) as tmpl_f:
-               return tmpl_f.read()
-       else:
-           return requests.get(template_location).content
+        if parse_result.scheme == 'file':
+            with open(parse_result.path) as tmpl_f:
+                return tmpl_f.read()
+        else:
+            return requests.get(template_location).content
     else:
         return ctx.get_resource(template_location)
 
@@ -521,11 +521,11 @@ def run(**kwargs):
 
     calls = kwargs.get('calls', [])
 
-    templates_urls = kwargs.get('templates', [])
+    templates_locs = kwargs.get('templates', [])
     template = kwargs.get('template')
 
     templates = []
-    for tmpl_loc in templates_urls:
+    for tmpl_loc in templates_locs:
         templates.append(_get_template(tmpl_loc))
 
     if template:

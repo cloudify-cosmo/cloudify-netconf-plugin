@@ -20,6 +20,7 @@ import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
 import mock
 import unittest
+import io
 
 
 class XmlRpcTest(unittest.TestCase):
@@ -494,10 +495,16 @@ class XmlRpcTest(unittest.TestCase):
             rpc.run(
                 ctx=fake_ctx, template="template.xml", params={}
             )
+            rpc.run(
+                ctx=fake_ctx, templates=["template.xml"], params={}
+            )
 
             # real params
             rpc.run(
                 ctx=fake_ctx, template="template.xml", params={'a': 'b'}
+            )
+            rpc.run(
+                ctx=fake_ctx, templates=["template.xml"], params={'a': 'b'}
             )
 
             # template with empty commands, must be skiped
@@ -507,6 +514,43 @@ class XmlRpcTest(unittest.TestCase):
             rpc.run(
                 ctx=fake_ctx, template="template.xml", params={'a': 'b'}
             )
+            rpc.run(
+                ctx=fake_ctx, templates=["template.xml"], params={'a': 'b'}
+            )
+
+            template_mock = io.StringIO(u"{{ a }}")
+            with mock.patch('cloudify_netconf.xml_rpc.open',
+                            return_value=template_mock,
+                            create=True) as mocked_open:
+
+                rpc.run(
+                    ctx=fake_ctx,
+                    templates=["file:///template.xml"],
+                    params={'a': 'b'}
+                )
+
+                mocked_open.assert_called_once_with("/template.xml")
+                nc_conn.send.assert_called_with(
+                    'b'
+                )
+
+            template_mock = mock.Mock()
+            template_mock.content = 'b'
+            with mock.patch('requests.get',
+                            return_value=template_mock,
+                            create=True) as mocked_open:
+
+                rpc.run(
+                    ctx=fake_ctx,
+                    templates=["http://cloudify.co/template.xml"],
+                    params={'a': 'b'}
+                )
+
+                mocked_open.assert_called_once_with(
+                    "http://cloudify.co/template.xml")
+                nc_conn.send.assert_called_with(
+                    'b'
+                )
 
     def test_run_with_calls(self):
         """check connect/call rpc/close connection calls sequence"""
