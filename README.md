@@ -213,7 +213,7 @@ node_templates:
           inputs:
             strict_check: <ignore not critical errors in xml, optional>
             deep_error_check: <look deeply for errors, optional by default false>
-            template: <template file name>
+            template: <template file name or URL>
             params: <dict params for template, optional>
               some_param_name: some param name
 ```
@@ -245,7 +245,7 @@ node_templates:
           inputs:
             strict_check: <ignore not critical errors in xml, optional>
             deep_error_check: <look deeply for errors, optional by default false>
-            templateis: [<template file name>]
+            templates: [<template file name or URL>]
             params: <dict params for template, optional>
               some_param_name: some param name
 ```
