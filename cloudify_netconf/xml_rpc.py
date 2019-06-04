@@ -503,6 +503,18 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
             ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
 
 
+def _get_template(template_location):
+    parse_result = urlparse(template_location)
+    if all([parse_result.scheme, parse_result.path]):
+       if parse_result.scheme == 'file':
+           with open(parse_result.path) as tmpl_f:
+               return tmpl_f.read()
+       else:
+           return requests.get(template_location).content
+    else:
+        return ctx.get_resource(template_location)
+
+
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
@@ -514,20 +526,10 @@ def run(**kwargs):
 
     templates = []
     for tmpl_loc in templates_urls:
-        parse_result = urlparse(tmpl_loc)
-        # template location is url with scheme specified
-        if all([parse_result.scheme, parse_result.path]):
-            if parse_result.scheme == 'file':
-                with open(parse_result.path) as tmpl_f:
-                    templates.append(tmpl_f.read())
-            else:
-                templates.append(requests.get(tmpl_loc).content)
-        # template location is local blueprint resource 
-        else:
-            templates.append(ctx.get_resource(tmpl_loc))
+        templates.append(_get_template(tmpl_loc))
 
     if template:
-        templates.extend(ctx.get_resource(template).split("]]>]]>"))
+        templates.extend(_get_template(template).split("]]>]]>"))
 
     if not calls and not templates:
         ctx.logger.info("Please provide calls or template")
