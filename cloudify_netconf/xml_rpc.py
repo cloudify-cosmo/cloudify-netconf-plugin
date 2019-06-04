@@ -517,7 +517,11 @@ def run(**kwargs):
         parse_result = urlparse(tmpl_loc)
         # template location is url with scheme specified
         if all([parse_result.scheme, parse_result.path]):
-            templates.append(requests.get(tmpl_loc).content)
+            if parse_result.scheme == 'file':
+                with open(parse_result.path) as tmpl_f:
+                    templates.append(tmpl_f.read())
+            else:
+                templates.append(requests.get(tmpl_loc).content)
         # template location is local blueprint resource 
         else:
             templates.append(ctx.get_resource(tmpl_loc))
