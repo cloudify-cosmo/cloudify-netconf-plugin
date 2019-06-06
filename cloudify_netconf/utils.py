@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from lxml import etree
-from lxml import isoschematron
 
 from cloudify import exceptions as cfy_exc
 
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
-RELAXNG_NAMESPACE = 'http://relaxng.org/ns/structure/1.0'
 
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
@@ -235,114 +233,8 @@ def generate_dict_node(parent, xml_node, nslist):
     _node_to_dict(parent, xml_node, xmlns)
 
 
-def xml_repack_node(xml_node):
-    # we have some issues with relaxng top node validation
-    # so we try to repack xml node
-    node_text = etree.tostring(
-        xml_node, pretty_print=False
-    )
-    return etree.XML(node_text)
-
-
-# def xml_repack_text(node_text):
-#    # we have some issues with relaxng top node validation
-#    # so we try to repack xml node
-#    xml_node = etree.XML(node_text)
-#    return etree.tostring(
-#        xml_node, pretty_print=False
-#    )
-
-
-def _xml_validate_node(node, relaxng, schematron):
-    if relaxng:
-        if not relaxng.validate(xml_repack_node(node)):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by rng\n reason:" + str(
-                    relaxng.error_log.last_error
-                )
-            )
-    if schematron:
-        if not schematron.validate(node):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by Schematron"
-            )
-
-
-def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
-    """Validate xml by rng and sch"""
-
-    if xpath:
-
-        # rng rules
-        relaxng = None
-        if rng:
-            rng_node = etree.XML(rng)
-            relaxng = etree.RelaxNG(rng_node)
-
-        # schematron rules
-        schematron = None
-        if sch:
-            sch_node = etree.XML(sch)
-            schematron = isoschematron.Schematron(sch_node)
-
-        # run validation selected by xpath nodes
-        for node in parent.xpath(xpath, namespaces=xmlns):
-            _xml_validate_node(node, relaxng, schematron)
-
-
-# relaxng specific parts
-def load_xml(path):
-    """load xml file, without any checks for errors"""
-    rng_rpc = open(path, 'rb')
-    with rng_rpc:
-        return etree.XML(rng_rpc.read())
-
-
 def default_xmlns():
     """default namespace list for relaxng"""
     return {
         '_': NETCONF_NAMESPACE,
-        'relaxng': RELAXNG_NAMESPACE
     }
-
-
-def _make_node_copy(xml_orig, nsmap):
-    """copy nodes with namespaces from parent"""
-    clone_nsmap = {}
-    for ns in nsmap:
-        clone_nsmap[ns] = nsmap[ns]
-    for ns in xml_orig.nsmap:
-        clone_nsmap[ns] = xml_orig.nsmap[ns]
-    clone = etree.Element(
-        xml_orig.tag, nsmap=clone_nsmap
-    )
-    for tag in xml_orig.attrib:
-        clone.attrib[tag] = xml_orig.attrib[tag]
-    for node in xml_orig.getchildren():
-        clone.append(_make_node_copy(node, clone_nsmap))
-    clone.text = xml_orig.text
-    return clone
-
-
-def load_relaxng_includes(xml_node, xmlns, replaces_files=None):
-    """will replace all includes by real content"""
-    if not replaces_files:
-        replaces_files = {}
-    nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
-    grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
-    while len(nodes):
-        for node in nodes:
-            parent = node.getparent()
-            if parent is not None:
-                parent.remove(node)
-                if 'href' in node.attrib:
-                    if node.attrib['href'] in replaces_files:
-                        subnodes = replaces_files[node.attrib['href']]
-                    else:
-                        subnodes = load_xml(node.attrib['href'])
-                    if subnodes.tag == grammar_name:
-                        for subnode in subnodes.getchildren():
-                            parent.append(
-                                _make_node_copy(subnode, subnodes.nsmap)
-                            )
-        nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)

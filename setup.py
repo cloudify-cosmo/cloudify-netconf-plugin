@@ -27,16 +27,5 @@ setup(
         'requests',
         "Jinja2>=2.7.2",  # for template support
         'cloudify-utilities-plugins-sdk==0.0.9',  # ssh connection
-    ],
-    data_files=[
-        ('share/netconf/xslt', [
-            'share-files/xslt/gen-common.xsl',
-            'share-files/xslt/gen-relaxng.xsl',
-            'share-files/xslt/gen-schematron.xsl',
-        ]),
-        ('share/netconf/schema', [
-            'share-files/schema/edit-config-attributes.rng',
-            'share-files/schema/relaxng-lib.rng',
-        ]),
     ]
 )
