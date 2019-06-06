@@ -1,3 +1,4 @@
 lxml
+requests
 cloudify-common==4.6
 git+https://github.com/cloudify-incubator/cloudify-utilities-plugins-sdk@0.0.9#egg=cloudify-utilities-plugins-sdk==0.0.9

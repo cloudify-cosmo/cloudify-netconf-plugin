@@ -213,10 +213,48 @@ node_templates:
           inputs:
             strict_check: <ignore not critical errors in xml, optional>
             deep_error_check: <look deeply for errors, optional by default false>
-            template: <template file name>
+            template: <template file name or URL>
             params: <dict params for template, optional>
               some_param_name: some param name
 ```
+
+_template_ input suppoorts single file location. It can be:
+* a path which is resolverd as blueprint resource
+* a URL
+
+```
+
+node_templates:
+  some-implimentation:
+    type: cloudify.netconf.nodes.xml_rpc
+    properties:
+      netconf_auth:
+        user: <user on device>
+        password: <password on device, optional>
+        ip: <ip for device>
+        key_content: <private key content>
+        port: <port for device, optional by default 830>
+      metadata:
+        xmlns:
+          _: <default namespace>
+        capabilities:
+          <list of capabilities, optional>
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: // can be create / configure / start / stop / delete
+          inputs:
+            strict_check: <ignore not critical errors in xml, optional>
+            deep_error_check: <look deeply for errors, optional by default false>
+            templates: [<template file name or URL>]
+            params: <dict params for template, optional>
+              some_param_name: some param name
+```
+
+_templates_ input may also be used instead of a single _template_. _templates_ does
+not support multiple calls in one file - each call sould be provided as a
+separete call.
+The same ways of specifying file location as for template are supported:
+blueprint resource or URL.
 
 ## Xml2Netconf description example
 ```

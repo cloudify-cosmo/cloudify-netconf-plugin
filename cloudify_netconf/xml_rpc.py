@@ -16,12 +16,14 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 
 from jinja2 import Template
+from urlparse import urlparse
 from cloudify_common_sdk import exceptions
 import cloudify_terminal_sdk.netconf_connection as netconf_connection
 import cloudify_netconf.utils as utils
 from lxml import etree
 import os
 import time
+import requests
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
@@ -183,7 +185,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
     )
 
     try:
-        if 'rpc-reply' not in xml_dict or \
+        if 'rpc-reply' not in xml_dict and \
                 (netconf_namespace + '@rpc-reply') not in xml_dict:
             ctx.logger.error(
                 'Unexpected key in response: {0}'.format(xml_dict))
@@ -501,16 +503,33 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
             ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
 
 
+def _get_template(template_location):
+    parse_result = urlparse(template_location)
+    if all([parse_result.scheme, parse_result.path]):
+        if parse_result.scheme == 'file':
+            with open(parse_result.path) as tmpl_f:
+                return tmpl_f.read()
+        else:
+            return requests.get(template_location).content
+    else:
+        return ctx.get_resource(template_location)
+
+
 @operation
 def run(**kwargs):
     """main entry point for all calls"""
 
     calls = kwargs.get('calls', [])
 
+    templates_locs = kwargs.get('templates', [])
     template = kwargs.get('template')
+
     templates = []
+    for tmpl_loc in templates_locs:
+        templates.append(_get_template(tmpl_loc))
+
     if template:
-        templates = ctx.get_resource(template).split("]]>]]>")
+        templates.extend(_get_template(template).split("]]>]]>"))
 
     if not calls and not templates:
         ctx.logger.info("Please provide calls or template")
