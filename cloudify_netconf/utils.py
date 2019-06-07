@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from lxml import etree
+from collections import OrderedDict
 
 from cloudify import exceptions as cfy_exc
 
@@ -88,7 +89,7 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
 
 
 def _gen_xml(parent, properties, xmlns, namespace, nsmap):
-    for node in sorted(properties.keys()):
+    for node in properties.keys():
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:
@@ -194,7 +195,7 @@ def _short_names(name, xmlns, nsmap=None):
     return _get_free_ns(xmlns, namespace, nsmap) + "@" + name
 
 
-def _node_to_dict(parent, xml_node, xmlns):
+def _node_to_dict(parent_list, xml_node, xmlns):
     if isinstance(xml_node, etree._Comment):
         return
 
@@ -204,11 +205,11 @@ def _node_to_dict(parent, xml_node, xmlns):
         # if we have subnodes or attibutes
         value = xml_node.text
     else:
-        value = {}
+        value_list = []
         if xml_node.text and len(xml_node.text.strip()):
-            value["_@@"] = xml_node.text.strip()
+            value_list.append(("_@@", xml_node.text.strip()))
         for i in xml_node.getchildren():
-            _node_to_dict(value, i, xmlns)
+            _node_to_dict(value_list, i, xmlns)
         for k in xml_node.attrib:
             k_short = _short_names(k, xmlns, xml_node.nsmap)
             if '@' in k_short:
@@ -217,20 +218,25 @@ def _node_to_dict(parent, xml_node, xmlns):
             else:
                 # we dont have namespace yet
                 k_short = "_@@" + k_short
-            value[k_short] = xml_node.attrib[k]
-    if name in parent:
-        previous = parent[name]
-        if isinstance(previous, list):
-            parent[name].append(value)
-        else:
-            parent[name] = [previous, value]
+            value_list.append((k_short, xml_node.attrib[k]))
+        value = OrderedDict(value_list)
+    for i in range(len(parent_list)):
+        (k, previous) = parent_list[i]
+        if k == name:
+            if isinstance(previous, list):
+                previous.append(value)
+            else:
+                parent_list[i] = (name, [previous, value])
+            break
     else:
-        parent[name] = value
+        parent_list.append((name, value))
 
 
-def generate_dict_node(parent, xml_node, nslist):
+def generate_dict_node(xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
-    _node_to_dict(parent, xml_node, xmlns)
+    parent_list = []
+    _node_to_dict(parent_list, xml_node, xmlns)
+    return OrderedDict(parent_list)
 
 
 def default_xmlns():

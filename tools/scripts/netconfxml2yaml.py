@@ -43,11 +43,7 @@ if __name__ == "__main__":
         xmlns = utils.default_xmlns()
         xml_node = utils.load_xml(sys.argv[1])
         rng = None
-        xml_dict = {}
-        utils.generate_dict_node(
-            xml_dict, xml_node,
-            xmlns
-        )
+        xml_dict = utils.generate_dict_node(xml_node, xmlns)
         result = {
             'payload': xml_dict,
             'ns': xmlns

@@ -76,11 +76,7 @@ def _server_support_1_1(xmlns, netconf_namespace, response):
     )
     capabilities = xml_node.xpath(xpath, namespaces=xmlns)
     for node in capabilities:
-        xml_dict = {}
-        utils.generate_dict_node(
-            xml_dict, node,
-            xmlns
-        )
+        xml_dict = utils.generate_dict_node(node, xmlns)
         value = xml_dict.get(netconf_namespace + '@capability')
         if value == netconf_connection.NETCONF_1_1_CAPABILITY:
             return True
@@ -177,11 +173,7 @@ def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
         parser = etree.XMLParser(recover=True)
         xml_node = etree.XML(response, parser)
 
-    xml_dict = {}
-    utils.generate_dict_node(
-        xml_dict, xml_node,
-        xmlns
-    )
+    xml_dict = utils.generate_dict_node(xml_node, xmlns)
 
     try:
         if 'rpc-reply' not in xml_dict and \
