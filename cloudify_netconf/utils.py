@@ -1,4 +1,4 @@
-# Copyright (c) 2015 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2015-2019 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from lxml import etree
-from lxml import isoschematron
+from collections import OrderedDict
 
 from cloudify import exceptions as cfy_exc
 
 
 NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
-RELAXNG_NAMESPACE = 'http://relaxng.org/ns/structure/1.0'
 
 # default netconf namespace short name
 DEFAULT_NCNS = "rfc6020"
@@ -90,7 +89,7 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
 
 
 def _gen_xml(parent, properties, xmlns, namespace, nsmap):
-    for node in sorted(properties.keys()):
+    for node in properties.keys():
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:
@@ -196,7 +195,7 @@ def _short_names(name, xmlns, nsmap=None):
     return _get_free_ns(xmlns, namespace, nsmap) + "@" + name
 
 
-def _node_to_dict(parent, xml_node, xmlns):
+def _node_to_dict(parent_list, xml_node, xmlns):
     if isinstance(xml_node, etree._Comment):
         return
 
@@ -206,11 +205,11 @@ def _node_to_dict(parent, xml_node, xmlns):
         # if we have subnodes or attibutes
         value = xml_node.text
     else:
-        value = {}
+        value_list = []
         if xml_node.text and len(xml_node.text.strip()):
-            value["_@@"] = xml_node.text.strip()
+            value_list.append(("_@@", xml_node.text.strip()))
         for i in xml_node.getchildren():
-            _node_to_dict(value, i, xmlns)
+            _node_to_dict(value_list, i, xmlns)
         for k in xml_node.attrib:
             k_short = _short_names(k, xmlns, xml_node.nsmap)
             if '@' in k_short:
@@ -219,130 +218,29 @@ def _node_to_dict(parent, xml_node, xmlns):
             else:
                 # we dont have namespace yet
                 k_short = "_@@" + k_short
-            value[k_short] = xml_node.attrib[k]
-    if name in parent:
-        previous = parent[name]
-        if isinstance(previous, list):
-            parent[name].append(value)
-        else:
-            parent[name] = [previous, value]
+            value_list.append((k_short, xml_node.attrib[k]))
+        value = OrderedDict(value_list)
+    for i in range(len(parent_list)):
+        (k, previous) = parent_list[i]
+        if k == name:
+            if isinstance(previous, list):
+                previous.append(value)
+            else:
+                parent_list[i] = (name, [previous, value])
+            break
     else:
-        parent[name] = value
+        parent_list.append((name, value))
 
 
-def generate_dict_node(parent, xml_node, nslist):
+def generate_dict_node(xml_node, nslist):
     netconf_namespace, xmlns = update_xmlns(nslist)
-    _node_to_dict(parent, xml_node, xmlns)
-
-
-def xml_repack_node(xml_node):
-    # we have some issues with relaxng top node validation
-    # so we try to repack xml node
-    node_text = etree.tostring(
-        xml_node, pretty_print=False
-    )
-    return etree.XML(node_text)
-
-
-# def xml_repack_text(node_text):
-#    # we have some issues with relaxng top node validation
-#    # so we try to repack xml node
-#    xml_node = etree.XML(node_text)
-#    return etree.tostring(
-#        xml_node, pretty_print=False
-#    )
-
-
-def _xml_validate_node(node, relaxng, schematron):
-    if relaxng:
-        if not relaxng.validate(xml_repack_node(node)):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by rng\n reason:" + str(
-                    relaxng.error_log.last_error
-                )
-            )
-    if schematron:
-        if not schematron.validate(node):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by Schematron"
-            )
-
-
-def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
-    """Validate xml by rng and sch"""
-
-    if xpath:
-
-        # rng rules
-        relaxng = None
-        if rng:
-            rng_node = etree.XML(rng)
-            relaxng = etree.RelaxNG(rng_node)
-
-        # schematron rules
-        schematron = None
-        if sch:
-            sch_node = etree.XML(sch)
-            schematron = isoschematron.Schematron(sch_node)
-
-        # run validation selected by xpath nodes
-        for node in parent.xpath(xpath, namespaces=xmlns):
-            _xml_validate_node(node, relaxng, schematron)
-
-
-# relaxng specific parts
-def load_xml(path):
-    """load xml file, without any checks for errors"""
-    rng_rpc = open(path, 'rb')
-    with rng_rpc:
-        return etree.XML(rng_rpc.read())
+    parent_list = []
+    _node_to_dict(parent_list, xml_node, xmlns)
+    return OrderedDict(parent_list)
 
 
 def default_xmlns():
     """default namespace list for relaxng"""
     return {
         '_': NETCONF_NAMESPACE,
-        'relaxng': RELAXNG_NAMESPACE
     }
-
-
-def _make_node_copy(xml_orig, nsmap):
-    """copy nodes with namespaces from parent"""
-    clone_nsmap = {}
-    for ns in nsmap:
-        clone_nsmap[ns] = nsmap[ns]
-    for ns in xml_orig.nsmap:
-        clone_nsmap[ns] = xml_orig.nsmap[ns]
-    clone = etree.Element(
-        xml_orig.tag, nsmap=clone_nsmap
-    )
-    for tag in xml_orig.attrib:
-        clone.attrib[tag] = xml_orig.attrib[tag]
-    for node in xml_orig.getchildren():
-        clone.append(_make_node_copy(node, clone_nsmap))
-    clone.text = xml_orig.text
-    return clone
-
-
-def load_relaxng_includes(xml_node, xmlns, replaces_files=None):
-    """will replace all includes by real content"""
-    if not replaces_files:
-        replaces_files = {}
-    nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
-    grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
-    while len(nodes):
-        for node in nodes:
-            parent = node.getparent()
-            if parent is not None:
-                parent.remove(node)
-                if 'href' in node.attrib:
-                    if node.attrib['href'] in replaces_files:
-                        subnodes = replaces_files[node.attrib['href']]
-                    else:
-                        subnodes = load_xml(node.attrib['href'])
-                    if subnodes.tag == grammar_name:
-                        for subnode in subnodes.getchildren():
-                            parent.append(
-                                _make_node_copy(subnode, subnodes.nsmap)
-                            )
-        nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)

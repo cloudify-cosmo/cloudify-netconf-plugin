@@ -1,5 +1,12 @@
 releases:
 
+  v0.4.0:
+  - Bump dependencies.
+  - Support list of url templates.
+  - Deprecate dsdl validation.
+  - Deprecate xml2netconf node type, use templates instead.
+  - Support rerun operation on resume.
+
   v0.3.1:
   - Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf
     low level connection.

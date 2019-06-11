@@ -1,4 +1,4 @@
-# Copyright (c) 2015 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2015-2019 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
-    version='0.3.1',
+    version='0.4.0',
     description='Cloudify Netconf plugin',
     author='Cloudify Platform Ltd.',
     author_email='hello@cloudify.co',
@@ -24,19 +24,8 @@ setup(
     install_requires=[
         'cloudify-common>=4.6',
         'lxml',
-        'requests',
+        'requests', # url templates
         "Jinja2>=2.7.2",  # for template support
         'cloudify-utilities-plugins-sdk==0.0.9',  # ssh connection
-    ],
-    data_files=[
-        ('share/netconf/xslt', [
-            'share-files/xslt/gen-common.xsl',
-            'share-files/xslt/gen-relaxng.xsl',
-            'share-files/xslt/gen-schematron.xsl',
-        ]),
-        ('share/netconf/schema', [
-            'share-files/schema/edit-config-attributes.rng',
-            'share-files/schema/relaxng-lib.rng',
-        ]),
     ]
 )

@@ -1,9 +1,9 @@
 plugins:
   netconf:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-netconf-plugin/archive/0.3.1.zip
+    source: https://github.com/cloudify-cosmo/cloudify-netconf-plugin/archive/0.4.0.zip
     package_name: cloudify-netconf-plugin
-    package_version: '0.3.1'
+    package_version: '0.4.0'
 
 data_types:
 
@@ -83,28 +83,6 @@ data_types:
         default: 1
 
 node_types:
-
-  # common type for rpc calls
-  cloudify.netconf.translator.xml2netconf:
-    derived_from: cloudify.nodes.Root
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: netconf.cloudify_netconf.xml2netconf.run
-          inputs: {}
-        configure:
-          implementation: netconf.cloudify_netconf.xml2netconf.run
-          inputs: {}
-        start:
-          implementation: netconf.cloudify_netconf.xml2netconf.run
-          inputs: {}
-        stop:
-          implementation: netconf.cloudify_netconf.xml2netconf.run
-          inputs: {}
-        delete:
-          implementation: netconf.cloudify_netconf.xml2netconf.run
-          inputs: {}
-
 
   # common type for rpc calls
   cloudify.netconf.nodes.xml_rpc:

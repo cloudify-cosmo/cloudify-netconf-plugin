@@ -148,16 +148,10 @@ node_templates:
             calls:
 
               - action: rfc6020@edit-config
-                # we have issue with multipart modules,
-                # skip validate for now
-                validate_xml: false
                 payload:
                     rfc6020@config: { get_property: [ vyatta-impl, config ] }
 
               - action: rfc6020@edit-config
-                # we have issue with multipart modules,
-                # skip validate for now
-                validate_xml: false
                 payload:
                   rfc6020@config:
                       vyatta-services-v1@service:
@@ -179,9 +173,6 @@ node_templates:
             calls:
 
               - action: rfc6020@edit-config
-                # we have issue with multipart modules,
-                # skip validate for now
-                validate_xml: false
                 payload:
                   rfc6020@config:
 

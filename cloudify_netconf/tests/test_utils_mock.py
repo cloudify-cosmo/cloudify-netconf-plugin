@@ -1,4 +1,4 @@
-# Copyright (c) 2015 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2015-2019 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from lxml import etree
-import mock
+from collections import OrderedDict
 import unittest
 
 from cloudify import exceptions as cfy_exc
@@ -21,51 +21,61 @@ import cloudify_netconf.utils as utils
 
 class UtilsMockTest(unittest.TestCase):
 
-    SIMPLE_DICT = {
+    UNSORTED_DICT = {
         'a': {
             'b': {
-                '_@@m': 'g',
-                '_@@': 'b'
-            },
-            'c': {
-                '_@nm@nm': 'update',
-                'd': ['1', '2', '3']
+                'c': 'd'
             }
         }
     }
+
+    SIMPLE_DICT = OrderedDict([
+        ('a', OrderedDict([
+            ('b', OrderedDict([
+                ('_@@', 'b'),
+                ('_@@m', 'g')
+            ])),
+            ('c', OrderedDict([
+                ('f', '1'),
+                ('e', 'str'),
+                ('d', ['1', '2', '3']),
+                ('_@nm@nm', 'update')
+            ]))
+        ]))
+    ])
 
     # unexisted namespace, but it will block usage of such name in tests
     FAKE_NS = "turing"
     # and new name will be
     REAL_NS = "_turing_"
 
-    TURING_DICT = {
-        'rfc6020@rpc': {
-            '_@@message-id': 'some_id',
-            'rfc6020@get': {
-                'rfc6020@filter': {
-                    '_@@type': 'subtree',
-                    REAL_NS + '@turing-machine': {
-                        REAL_NS + '@transition-function': None
-                    }
-                },
-                'rfc6020@source': {
-                    'rfc6020@running': None
-                }
-            }
-        }
-    }
+    TURING_DICT = OrderedDict([
+        ('rfc6020@rpc', OrderedDict([
+            ('rfc6020@get', OrderedDict([
+                ('rfc6020@filter', OrderedDict([
+                    (REAL_NS + '@turing-machine', OrderedDict([
+                        (REAL_NS + '@transition-function', None)
+                    ])),
+                    ('_@rfc6020@type', 'subtree')
+                ])),
+                ('rfc6020@source', OrderedDict([
+                    ('rfc6020@running', None)
+                ]))
+            ])),
+            ('_@rfc6020@message-id', 'some_id')
+        ]))
+    ])
 
     # stripped version of turing xml
     TURING_STRIPPED = (
         """<rfc6020:rpc xmlns:_turing_="http://example.net/turing-m""" +
         """achine" xmlns:rfc6020="urn:ietf:params:xml:ns:netconf:ba""" +
-        """se:1.0" xmlns:turing="a"><rfc6020:rpc rfc6020:message-id""" +
+        """se:1.0" xmlns:turing="a" rfc6020:message-id""" +
         """="some_id"><rfc6020:get><rfc6020:filter rfc6020:type="su""" +
         """btree"><_turing_:turing-machine><_turing_:transition-fun""" +
         """ction/></_turing_:turing-machine></rfc6020:filter><rfc60""" +
         """20:source><rfc6020:running/></rfc6020:source></rfc6020:g""" +
-        """et></rfc6020:rpc></rfc6020:rpc>"""
+        """et></rfc6020:rpc>"""
     )
 
     def test_xml_to_dict_net_namespace(self):
@@ -81,8 +91,7 @@ class UtilsMockTest(unittest.TestCase):
         xmlns = {
             "_": utils.NETCONF_NAMESPACE
         }
-        result = {}
-        utils.generate_dict_node(result, etree.XML(xml), xmlns)
+        result = utils.generate_dict_node(etree.XML(xml), xmlns)
         # check dict
         self.assertEqual(
             {'a': {'_something@b': 'b'}},
@@ -107,6 +116,8 @@ class UtilsMockTest(unittest.TestCase):
                     b
                 </b>
                 <c nm:nm="update">
+                    <f>1</f>
+                    <e>str</e>
                     <d>1</d>
                     <d>2</d>
                     <d>3</d>
@@ -116,8 +127,7 @@ class UtilsMockTest(unittest.TestCase):
         xmlns = {
             "_": utils.NETCONF_NAMESPACE
         }
-        result = {}
-        utils.generate_dict_node(result, etree.XML(xml), xmlns)
+        result = utils.generate_dict_node(etree.XML(xml), xmlns)
         # check dict
         self.assertDictEqual(
             self.SIMPLE_DICT,
@@ -133,29 +143,13 @@ class UtilsMockTest(unittest.TestCase):
 
     def test_xml_to_dict_turing(self):
         """example from turing machine"""
-        xml = """
-            <rpc xmlns:turing="http://example.net/turing-machine"
-                xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
-                message-id="some_id">
-              <get>
-                <filter type="subtree">
-                  <turing:turing-machine>
-                    <turing:transition-function/>
-                  </turing:turing-machine>
-                </filter>
-                <source>
-                  <running/>
-                </source>
-              </get>
-            </rpc>
-        """
         xmlns = {
             utils.DEFAULT_NCNS: utils.NETCONF_NAMESPACE,
             # require for regen namespace
             self.FAKE_NS: "a"
         }
-        result = {}
-        utils.generate_dict_node(result, etree.XML(xml), xmlns)
+        result = utils.generate_dict_node(etree.XML(self.TURING_STRIPPED),
+                                          xmlns)
         # check dict
         self.assertEqual(self.TURING_DICT, result)
         # check xmlns
@@ -165,6 +159,29 @@ class UtilsMockTest(unittest.TestCase):
                 self.REAL_NS: 'http://example.net/turing-machine',
                 utils.DEFAULT_NCNS: utils.NETCONF_NAMESPACE
             }, xmlns
+        )
+
+    def test_dict_unsorted(self):
+        """test simple dictionary that can be unsorted"""
+        xmlns = {
+            '_': utils.NETCONF_NAMESPACE,
+            'nm': 's'
+        }
+
+        xml_node = utils.generate_xml_node(
+            self.UNSORTED_DICT,
+            xmlns,
+            'rpc'
+        )
+
+        xml_node_string = etree.tostring(
+            xml_node, pretty_print=False
+        )
+
+        self.assertEqual(
+            xml_node_string,
+            """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netconf:b""" +
+            """ase:1.0"><a><b><c>d</c></b></a></rpc>"""
         )
 
     def test_dict_to_xml(self):
@@ -189,7 +206,7 @@ class UtilsMockTest(unittest.TestCase):
             """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netc""" +
             """onf:base:1.0"><a xmlns:ns0="urn:ietf:params:xml:ns:n""" +
             """etconf:base:1.0"><b ns0:m="g">b</b><c nm:nm="update">""" +
-            """<d>1</d><d>2</d><d>3</d></c></a></rpc>"""
+            """<f>1</f><e>str</e><d>1</d><d>2</d><d>3</d></c></a></rpc>"""
         )
 
     def test_dict_to_xml_raw_include(self):
@@ -227,8 +244,10 @@ class UtilsMockTest(unittest.TestCase):
         }
 
         xml_node = utils.generate_xml_node(
-            self.TURING_DICT,
+            # we should use subelement because parent will be rpc
+            self.TURING_DICT['rfc6020@rpc'],
             xmlns,
+            # parent name
             'rpc'
         )
 
@@ -323,169 +342,6 @@ class UtilsMockTest(unittest.TestCase):
     def test_default_xmlns(self):
         """check return wellknow namespaces"""
         self.assertTrue(utils.default_xmlns())
-
-    def test_load_xml(self):
-        """check code used for merge nodes"""
-        original = "<a>a</a>"
-        fake_file = mock.mock_open(read_data="<a>a</a>")
-        with mock.patch(
-            '__builtin__.open', fake_file
-        ):
-            xml = utils.load_xml("a.a")
-            self.assertEqual(etree.tostring(xml), original)
-
-    RELAXNG_MAIN = """
-        <grammar
-            xmlns:tm="http://example.net/turing-machine"
-            xmlns="http://relaxng.org/ns/structure/1.0"
-            xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1"
-            datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
-            ns="urn:ietf:params:xml:ns:netconf:base:1.0"
-        >
-            <include href="relaxng-lib.rng"/>
-            <start>
-                <element name="config">
-                </element>
-            </start>
-        </grammar>
-    """
-    RELAXNG_SLAVE = """
-        <grammar
-            xmlns:tm="http://example.net/turing-machine"
-            xmlns="http://relaxng.org/ns/structure/1.0"
-            xmlns:nma="urn:ietf:params:xml:ns:netmod:dsdl-annotations:1"
-            xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0"
-            xmlns:en="urn:ietf:params:xml:ns:netconf:notification:1.0"
-            datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
-        >
-            <define name="ok-element">
-                <element name="nc:ok">
-                    <empty/>
-                </element>
-            </define>
-            <define name="turing-machine__state-index">
-                <data type="unsignedShort"/>
-            </define>
-            <define name="turing-machine__head-dir">
-                <choice>
-                    <value>left</value>
-                    <value>right</value>
-                </choice>
-            </define>
-            <define name="turing-machine__tape-symbol">
-                <data type="string">
-                    <param name="minLength">0</param>
-                    <param name="maxLength">1</param>
-                </data>
-            </define>
-        </grammar>
-    """
-    RELAXNG_RESULT = (
-        """<grammar xmlns:tm="http://example.net/turing-machine" xm""" +
-        """lns="http://relaxng.org/ns/structure/1.0" xmlns:nma="urn""" +
-        """:ietf:params:xml:ns:netmod:dsdl-annotations:1" datatypeL""" +
-        """ibrary="http://www.w3.org/2001/XMLSchema-datatypes" ns""" +
-        """="urn:ietf:params:xml:ns:netconf:base:1.0">\n           """ +
-        """ <start>\n                <element name="config">\n     """ +
-        """           </element>\n            </start>\n        <de""" +
-        """fine xmlns:en="urn:ietf:params:xml:ns:netconf:notificati""" +
-        """on:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.""" +
-        """0" name="ok-element">\n                <element name="nc""" +
-        """:ok">\n                    <empty/></element></define><d""" +
-        """efine xmlns:en="urn:ietf:params:xml:ns:netconf:notificat""" +
-        """ion:1.0" xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1""" +
-        """.0" name="turing-machine__state-index">\n               """ +
-        """ <data type="unsignedShort"/></define><define xmlns:""" +
-        """en="urn:ietf:params:xml:ns:netconf:notification:1.0" xml""" +
-        """ns:nc="urn:ietf:params:xml:ns:netconf:base:1.0" name="tu""" +
-        """ring-machine__head-dir">\n                <choice>\n    """ +
-        """                <value>left</value><value>right</value><""" +
-        """/choice></define><define xmlns:en="urn:ietf:params:xml:n""" +
-        """s:netconf:notification:1.0" xmlns:nc="urn:ietf:params:xm""" +
-        """l:ns:netconf:base:1.0" name="turing-machine__tape-symbol""" +
-        """">\n                <data type="string">\n              """ +
-        """      <param name="minLength">0</param><param name="maxL""" +
-        """ength">1</param></data></define></grammar>"""
-    )
-
-    def test_load_relaxng_includes(self):
-        """check update relaxng with include"""
-        xmlns = utils.default_xmlns()
-        main_node = etree.XML(self.RELAXNG_MAIN)
-        fake_file = mock.mock_open(read_data=self.RELAXNG_SLAVE)
-        with mock.patch(
-            '__builtin__.open', fake_file
-        ):
-            utils.load_relaxng_includes(main_node, xmlns)
-        self.assertEqual(
-            etree.tostring(main_node),
-            self.RELAXNG_RESULT
-        )
-
-    def test_load_relaxng_includes_without_file(self):
-        """check update relaxng with include"""
-        xmlns = utils.default_xmlns()
-        main_node = etree.XML(self.RELAXNG_MAIN)
-        utils.load_relaxng_includes(
-            main_node, xmlns, {
-                "relaxng-lib.rng": etree.XML(self.RELAXNG_SLAVE)
-            }
-        )
-        self.assertEqual(
-            etree.tostring(main_node),
-            self.RELAXNG_RESULT
-        )
-
-    def test_xml_validate(self):
-        """check run xml validate"""
-        relaxng_mock = mock.MagicMock()
-        schematron_mock = mock.MagicMock()
-
-        xmlns = {
-            'r': utils.NETCONF_NAMESPACE,
-            'n': "someaction"
-        }
-
-        with mock.patch(
-            'lxml.isoschematron.Schematron', mock.MagicMock(
-                return_value=schematron_mock
-            )
-        ):
-            with mock.patch(
-                'lxml.etree.RelaxNG', mock.MagicMock(
-                    return_value=relaxng_mock
-                )
-            ):
-                parent = etree.XML("<a><b>c</b></a>")
-                relaxng_mock.validate = mock.MagicMock(
-                    return_value=False
-                )
-                schematron_mock.validate = mock.MagicMock(
-                    return_value=False
-                )
-                # we dont have validation and nodes for it
-                utils.xml_validate(parent, xmlns, "/d")
-
-                # we have validation nodes and failed relaxng check
-                with self.assertRaises(cfy_exc.NonRecoverableError):
-                    utils.xml_validate(parent, xmlns, "/a", "<d>a</d>")
-
-                # we have validation nodes and failed shematron check
-                with self.assertRaises(cfy_exc.NonRecoverableError):
-                    utils.xml_validate(
-                        parent, xmlns, "/a", None, "<d>a</d>"
-                    )
-
-                # everything fine
-                relaxng_mock.validate = mock.MagicMock(
-                    return_value=True
-                )
-                schematron_mock.validate = mock.MagicMock(
-                    return_value=True
-                )
-                utils.xml_validate(
-                    parent, xmlns, "/a", "<d>a</d>", "<d>a</d>"
-                )
 
 
 if __name__ == '__main__':
