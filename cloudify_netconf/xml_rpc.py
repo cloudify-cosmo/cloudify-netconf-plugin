@@ -11,18 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cloudify import ctx
-from cloudify.decorators import operation
-from cloudify import exceptions as cfy_exc
-
 from jinja2 import Template
 from urlparse import urlparse
-from cloudify_common_sdk import exceptions
-import cloudify_terminal_sdk.netconf_connection as netconf_connection
-import cloudify_netconf.utils as utils
 from lxml import etree
 import time
 import requests
+
+from cloudify_common_sdk import exceptions
+import cloudify_terminal_sdk.netconf_connection as netconf_connection
+from cloudify.decorators import operation
+from cloudify import exceptions as cfy_exc
+
+import cloudify_netconf.utils as utils
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
@@ -158,8 +158,8 @@ def _check_reply_for_errors(reply, netconf_namespace, deep_error_check=False):
     return reply
 
 
-def _parse_response(xmlns, netconf_namespace, response, strict_check=False,
-                    deep_error_check=False):
+def _parse_response(ctx, xmlns, netconf_namespace, response,
+                    strict_check=False, deep_error_check=False):
     """parse response from server with check to rpc-error"""
     if strict_check:
         try:
@@ -205,14 +205,15 @@ def _merge_ns(base, override):
     return new_ns
 
 
-def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+def _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
                     strict_check, deep_error_check):
     ctx.logger.info(
-        "Checks: xml validation: %s, rpc_error deep check: %s " % (
-            strict_check, deep_error_check
-        )
+        "Checks: xml validation: {strict_check}, "
+        "rpc_error deep check: {deep_error_check} "
+        .format(strict_check=strict_check,
+                deep_error_check=deep_error_check)
     )
-    ctx.logger.info("i sent: " + rpc_string)
+    ctx.logger.info("Sent: {message}".format(message=rpc_string))
 
     # cisco send new line before package, so need strip
     try:
@@ -221,17 +222,17 @@ def _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
         # use str instead, for fully hide traceback and orignal exception name
         raise cfy_exc.NonRecoverableError(str(e))
 
-    ctx.logger.info("i recieved:" + response)
+    ctx.logger.info("Recieved: {response}".format(response=response))
 
     response_dict = _parse_response(
-        xmlns, netconf_namespace, response, strict_check, deep_error_check
+        ctx, xmlns, netconf_namespace, response, strict_check, deep_error_check
     )
-    ctx.logger.info("package will be :" + str(response_dict))
+    ctx.logger.info("Package: {response}".format(response=repr(response_dict)))
     return response_dict
 
 
-def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns,
-             strict_check=False, deep_error_check=False):
+def _run_one(ctx, netconf, message_id, operation, netconf_namespace, data,
+             xmlns, strict_check=False, deep_error_check=False):
     """run one call by netconf connection"""
     # rpc
     ctx.logger.info("rpc call")
@@ -245,11 +246,11 @@ def _run_one(netconf, message_id, operation, netconf_namespace, data, xmlns,
         encoding='UTF-8'
     )
 
-    return _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+    return _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
                            strict_check, deep_error_check)
 
 
-def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns,
+def _lock(ctx, name, lock, netconf, message_id, netconf_namespace, xmlns,
           strict_check):
     """lock database by name"""
     operation = "@lock" if lock else "@unlock"
@@ -259,12 +260,22 @@ def _lock(name, lock, netconf, message_id, netconf_namespace, xmlns,
         }
     }
     _run_one(
-        netconf, message_id, netconf_namespace + operation,
+        ctx, netconf, message_id, netconf_namespace + operation,
         netconf_namespace, data, xmlns, strict_check
     )
 
 
-def _copy(front, back, netconf, message_id, netconf_namespace, xmlns,
+def _discard_changes(ctx, netconf, message_id, netconf_namespace, xmlns,
+                     strict_check):
+    """discard changes in candidate database"""
+    operation = "@discard-changes"
+    _run_one(
+        ctx, netconf, message_id, netconf_namespace + operation,
+        netconf_namespace, {}, xmlns, strict_check
+    )
+
+
+def _copy(ctx, front, back, netconf, message_id, netconf_namespace, xmlns,
           strict_check):
     """copy fron database values to back database"""
     data = {
@@ -276,7 +287,7 @@ def _copy(front, back, netconf, message_id, netconf_namespace, xmlns,
         }
     }
     _run_one(
-        netconf, message_id, netconf_namespace + "@copy-config",
+        ctx, netconf, message_id, netconf_namespace + "@copy-config",
         netconf_namespace, data, xmlns, strict_check
     )
 
@@ -297,7 +308,7 @@ def _update_data(data, operation, netconf_namespace, back):
     data[netconf_namespace + "@target"] = {back: None}
 
 
-def _run_templates(netconf, templates, template_params, netconf_namespace,
+def _run_templates(ctx, netconf, templates, template_params, netconf_namespace,
                    xmlns, strict_check, deep_error_check):
     for template in templates:
         # initially empty
@@ -317,11 +328,11 @@ def _run_templates(netconf, templates, template_params, netconf_namespace,
         template_params['ctx'] = ctx
         rpc_string = template_engine.render(template_params)
 
-        _run_one_string(netconf, rpc_string, xmlns, netconf_namespace,
+        _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
                         strict_check, deep_error_check)
 
 
-def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
+def _run_calls(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
                back_database, strict_check):
     # we can have several calls in one session,
     # like lock, edit-config, unlock
@@ -333,7 +344,7 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
             continue
         data = call.get('payload', {})
 
-        message_id = message_id + 1
+        message_id += 1
 
         if "@" not in operation:
             operation = "_@" + operation
@@ -341,7 +352,7 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
         _update_data(data, operation, netconf_namespace, back_database)
 
         response_dict = _run_one(
-            netconf, message_id, operation, netconf_namespace, data,
+            ctx, netconf, message_id, operation, netconf_namespace, data,
             xmlns, strict_check, deep_error_check
         )
 
@@ -352,7 +363,7 @@ def _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
             ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
 
 
-def _get_template(template_location):
+def _get_template(ctx, template_location):
     parse_result = urlparse(template_location)
     if all([parse_result.scheme, parse_result.path]):
         if parse_result.scheme == 'file':
@@ -365,7 +376,7 @@ def _get_template(template_location):
 
 
 @operation(resumable=True)
-def run(**kwargs):
+def run(ctx, **kwargs):
     """main entry point for all calls"""
 
     calls = kwargs.get('calls', [])
@@ -375,10 +386,10 @@ def run(**kwargs):
 
     templates = []
     for tmpl_loc in templates_locs:
-        templates.append(_get_template(tmpl_loc))
+        templates.append(_get_template(ctx, tmpl_loc))
 
     if template:
-        templates.extend(_get_template(template).split("]]>]]>"))
+        templates.extend(_get_template(ctx, template).split("]]>]]>"))
 
     if not calls and not templates:
         ctx.logger.info("Please provide calls or template")
@@ -398,17 +409,24 @@ def run(**kwargs):
     # save logs to debug file
     log_file_name = None
     if netconf_auth.get('store_logs'):
-        log_file_name = "/tmp/netconf-%s_%s_%s.log" % (
-            str(ctx.execution_id), str(ctx.instance.id), str(ctx.workflow_id)
+        log_file_name = (
+            "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
+            .format(execution_id=str(ctx.execution_id),
+                    instance_id=str(ctx.instance.id),
+                    workflow_id=str(ctx.workflow_id))
         )
         ctx.logger.info(
-            "Communication logs will be saved to %s" % log_file_name
+            "Communication logs will be saved to {log_file_name}".format(
+                log_file_name=log_file_name)
         )
+
+    strict_check = kwargs.get('strict_check', True)
 
     # if node contained in some other node, try to overwrite ip
     if not ip_list:
         ip_list = [ctx.instance.host_ip]
-        ctx.logger.info("Used host from container: %s" % str(ip_list))
+        ctx.logger.info("Used host from container: {ip_list}".format(
+            ip_list=repr(ip_list)))
     # check minimal amout of credentials
     if not port or not ip_list or not user or (
         not password and not key_content
@@ -432,11 +450,12 @@ def run(**kwargs):
     capabilities = properties.get('metadata', {}).get('capabilities')
 
     # connect
-    ctx.logger.info("use %s@%s:%s for login" % (user, ip_list, port))
+    ctx.logger.info("use {user}@{ip_list}:{port} for login".format(
+        user=user, ip_list=ip_list, port=port))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
-    ctx.logger.info("i sent: " + hello_string)
+    ctx.logger.info("Sent: {message}".format(message=hello_string))
 
     netconf = netconf_connection.NetConfConnection(logger=ctx.logger,
                                                    log_file_name=log_file_name)
@@ -445,73 +464,86 @@ def run(**kwargs):
             capabilities = netconf.connect(
                 ip, user, hello_string, password, key_content, port
             )
-            ctx.logger.info("Will be used: " + ip)
+            ctx.logger.info("Will be used: {ip}".format(ip=ip))
             break
         except Exception as ex:
-            ctx.logger.info("Can't connect to %s with %s" % (
-                repr(ip), str(ex)
+            ctx.logger.info("Can't connect to {ip} with {ex}".format(
+                ip=repr(ip), ex=str(ex)
             ))
     else:
         raise cfy_exc.NonRecoverableError(
             "please check your ip list"
         )
 
-    ctx.logger.info("i recieved: " + capabilities)
+    ctx.logger.info("Recieved: {capabilities}"
+                    .format(capabilities=capabilities))
 
     if _server_support_1_1(xmlns, netconf_namespace, capabilities):
-        ctx.logger.info("i will use version 1.1 of netconf protocol")
+        ctx.logger.info("use version 1.1 of netconf protocol")
         netconf.current_level = netconf_connection.NETCONF_1_1_CAPABILITY
     else:
-        ctx.logger.info("i will use version 1.0 of netconf protocol")
+        ctx.logger.info("use version 1.0 of netconf protocol")
 
-    strict_check = kwargs.get('strict_check', True)
-    if 'lock' in kwargs:
-        message_id = message_id + 1
-        for name in kwargs['lock']:
-            _lock(
-                name, True, netconf, message_id, netconf_namespace,
-                xmlns, strict_check
+    try:
+        if 'lock' in kwargs:
+            message_id += 1
+            for name in kwargs['lock']:
+                _lock(
+                    ctx, name, True, netconf, message_id, netconf_namespace,
+                    xmlns, strict_check
+                )
+
+        if 'back_database' in kwargs and 'front_database' in kwargs:
+            message_id += 1
+            _copy(
+                ctx, kwargs['front_database'], kwargs['back_database'],
+                netconf, message_id, netconf_namespace, xmlns, strict_check
             )
 
-    if 'back_database' in kwargs and 'front_database' in kwargs:
-        message_id = message_id + 1
-        _copy(
-            kwargs['front_database'], kwargs['back_database'],
-            netconf, message_id, netconf_namespace, xmlns, strict_check
-        )
+        if calls:
+            _run_calls(ctx, netconf, message_id, netconf_namespace, xmlns,
+                       calls, kwargs.get('back_database'), strict_check)
+        elif templates:
+            template_params = kwargs.get('params')
+            deep_error_check = kwargs.get('deep_error_check')
+            ctx.logger.info("Params for template {template_params}"
+                            .format(template_params=str(template_params)))
+            _run_templates(ctx, netconf, templates, template_params,
+                           netconf_namespace, xmlns, strict_check,
+                           deep_error_check)
 
-    if calls:
-        _run_calls(netconf, message_id, netconf_namespace, xmlns, calls,
-                   kwargs.get('back_database'), strict_check)
-    elif templates:
-        template_params = kwargs.get('params')
-        deep_error_check = kwargs.get('deep_error_check')
-        ctx.logger.info("Params for template %s" % str(template_params))
-        _run_templates(netconf, templates, template_params, netconf_namespace,
-                       xmlns, strict_check, deep_error_check)
-
-    if 'back_database' in kwargs and 'front_database' in kwargs:
-        message_id = message_id + 1
-        _copy(
-            kwargs['back_database'], kwargs['front_database'],
-            netconf, message_id, netconf_namespace, xmlns, strict_check
-        )
-
-    if 'lock' in kwargs:
-        message_id = message_id + 1
-        for name in kwargs['lock']:
-            _lock(
-                name, False, netconf, message_id, netconf_namespace,
-                xmlns, strict_check
+        if 'back_database' in kwargs and 'front_database' in kwargs:
+            message_id += 1
+            _copy(
+                ctx, kwargs['back_database'], kwargs['front_database'],
+                netconf, message_id, netconf_namespace, xmlns, strict_check
             )
 
-    # goodbye
-    ctx.logger.info("connection close")
-    message_id = message_id + 1
-    goodbye_string = _generate_goodbye(
-        xmlns, netconf_namespace, message_id
-    )
-    ctx.logger.info("i sent: " + goodbye_string)
+    except (cfy_exc.NonRecoverableError, cfy_exc.RecoverableError) as e:
+        # discard only if we know that used candidate database
+        if 'back_database' in kwargs and 'front_database' in kwargs:
+            ctx.logger.info("Discard changes")
+            message_id += 1
+            _discard_changes(ctx, netconf, message_id, netconf_namespace,
+                             xmlns, strict_check)
+        raise e
+    finally:
+        # unlock databases
+        if 'lock' in kwargs:
+            message_id += 1
+            for name in kwargs['lock']:
+                _lock(
+                    ctx, name, False, netconf, message_id, netconf_namespace,
+                    xmlns, strict_check
+                )
 
-    response = netconf.close(goodbye_string)
-    ctx.logger.info("i recieved: " + response)
+        # goodbye
+        ctx.logger.info("Connection close")
+        message_id += 1
+        goodbye_string = _generate_goodbye(
+            xmlns, netconf_namespace, message_id
+        )
+        ctx.logger.info("Sent: {message}".format(message=goodbye_string))
+
+        response = netconf.close(goodbye_string)
+        ctx.logger.info("Recieved: {message} ".format(message=response))

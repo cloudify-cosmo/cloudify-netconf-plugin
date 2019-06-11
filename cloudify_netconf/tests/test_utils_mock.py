@@ -343,6 +343,20 @@ class UtilsMockTest(unittest.TestCase):
         """check return wellknow namespaces"""
         self.assertTrue(utils.default_xmlns())
 
+    def test_get_free_ns(self):
+        """check free namespace search"""
+        xmlns = {"a": "b"}
+        self.assertEqual(utils._get_free_ns(xmlns, "abrac:adabra"),
+                         "_abrac_adabra")
+        self.assertEqual(xmlns, {"a": "b",
+                                 "_abrac_adabra": "abrac:adabra"})
+        # duplicate
+        self.assertEqual(utils._get_free_ns(xmlns, "abrac/adabra"),
+                         "__abrac_adabra_")
+        self.assertEqual(xmlns, {"a": "b",
+                                 "_abrac_adabra": "abrac:adabra",
+                                 "__abrac_adabra_": "abrac/adabra"})
+
 
 if __name__ == '__main__':
     unittest.main()
