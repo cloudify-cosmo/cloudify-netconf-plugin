@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from jinja2 import Template
 from urlparse import urlparse
 from lxml import etree
 import time
@@ -21,7 +20,7 @@ from cloudify_common_sdk import exceptions
 import cloudify_terminal_sdk.netconf_connection as netconf_connection
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-
+from cloudify_common_sdk import filters
 import cloudify_netconf.utils as utils
 
 
@@ -179,7 +178,8 @@ def _parse_response(ctx, xmlns, netconf_namespace, response,
         if 'rpc-reply' not in xml_dict and \
                 (netconf_namespace + '@rpc-reply') not in xml_dict:
             ctx.logger.error(
-                'Unexpected key in response: {0}'.format(xml_dict))
+                'Unexpected key in response: {response}'.format(
+                    response=filters.shorted_text(xml_dict)))
         reply = \
             [v for k, v in xml_dict.viewitems()
              if 'rpc-reply' in k][0]
@@ -213,7 +213,8 @@ def _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
         .format(strict_check=strict_check,
                 deep_error_check=deep_error_check)
     )
-    ctx.logger.info("Sent: {message}".format(message=rpc_string))
+    ctx.logger.debug("Sent: {message}"
+                     .format(message=filters.shorted_text(rpc_string)))
 
     # cisco send new line before package, so need strip
     try:
@@ -222,12 +223,14 @@ def _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
         # use str instead, for fully hide traceback and orignal exception name
         raise cfy_exc.NonRecoverableError(str(e))
 
-    ctx.logger.info("Recieved: {response}".format(response=response))
+    ctx.logger.debug("Recieved: {response}"
+                     .format(response=filters.shorted_text(response)))
 
     response_dict = _parse_response(
         ctx, xmlns, netconf_namespace, response, strict_check, deep_error_check
     )
-    ctx.logger.info("Package: {response}".format(response=repr(response_dict)))
+    ctx.logger.debug("Package: {response}"
+                     .format(response=filters.shorted_text(response_dict)))
     return response_dict
 
 
@@ -235,7 +238,7 @@ def _run_one(ctx, netconf, message_id, operation, netconf_namespace, data,
              xmlns, strict_check=False, deep_error_check=False):
     """run one call by netconf connection"""
     # rpc
-    ctx.logger.info("rpc call")
+    ctx.logger.info("call: {call}".format(call=operation))
     parent = utils.rpc_gen(
         message_id, operation, netconf_namespace, data, xmlns
     )
@@ -320,13 +323,12 @@ def _run_templates(ctx, netconf, templates, template_params, netconf_namespace,
         if not template:
             continue
 
-        template_engine = Template(template)
         if not template_params:
             template_params = {}
 
         # supply ctx for template for reuse runtime params
         template_params['ctx'] = ctx
-        rpc_string = template_engine.render(template_params)
+        rpc_string = filters.render_template(template, template_params)
 
         _run_one_string(ctx, netconf, rpc_string, xmlns, netconf_namespace,
                         strict_check, deep_error_check)
@@ -426,7 +428,7 @@ def run(ctx, **kwargs):
     if not ip_list:
         ip_list = [ctx.instance.host_ip]
         ctx.logger.info("Used host from container: {ip_list}".format(
-            ip_list=repr(ip_list)))
+            ip_list=filters.shorted_text(ip_list)))
     # check minimal amout of credentials
     if not port or not ip_list or not user or (
         not password and not key_content
@@ -455,7 +457,8 @@ def run(ctx, **kwargs):
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
     )
-    ctx.logger.info("Sent: {message}".format(message=hello_string))
+    ctx.logger.debug("Sent: {message}"
+                     .format(message=filters.shorted_text(hello_string)))
 
     netconf = netconf_connection.NetConfConnection(logger=ctx.logger,
                                                    log_file_name=log_file_name)
@@ -475,8 +478,8 @@ def run(ctx, **kwargs):
             "please check your ip list"
         )
 
-    ctx.logger.info("Recieved: {capabilities}"
-                    .format(capabilities=capabilities))
+    ctx.logger.debug("Recieved: {capabilities}"
+                     .format(capabilities=filters.shorted_text(capabilities)))
 
     if _server_support_1_1(xmlns, netconf_namespace, capabilities):
         ctx.logger.info("use version 1.1 of netconf protocol")
@@ -506,8 +509,8 @@ def run(ctx, **kwargs):
         elif templates:
             template_params = kwargs.get('params')
             deep_error_check = kwargs.get('deep_error_check')
-            ctx.logger.info("Params for template {template_params}"
-                            .format(template_params=str(template_params)))
+            ctx.logger.debug("Params for template {template_params}".format(
+                template_params=filters.shorted_text(template_params)))
             _run_templates(ctx, netconf, templates, template_params,
                            netconf_namespace, xmlns, strict_check,
                            deep_error_check)
@@ -543,7 +546,9 @@ def run(ctx, **kwargs):
         goodbye_string = _generate_goodbye(
             xmlns, netconf_namespace, message_id
         )
-        ctx.logger.info("Sent: {message}".format(message=goodbye_string))
+        ctx.logger.debug("Sent: {message}"
+                         .format(message=filters.shorted_text(goodbye_string)))
 
         response = netconf.close(goodbye_string)
-        ctx.logger.info("Recieved: {message} ".format(message=response))
+        ctx.logger.debug("Recieved: {message} "
+                         .format(message=filters.shorted_text(response)))
