@@ -377,6 +377,75 @@ def _get_template(ctx, template_location):
         return ctx.get_resource(template_location)
 
 
+def _run_in_database(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
+                     templates, kwargs, strict_check):
+    """Change current database and run action"""
+    if 'back_database' in kwargs and 'front_database' in kwargs:
+        message_id += 1
+        _copy(
+            ctx, kwargs['front_database'], kwargs['back_database'],
+            netconf, message_id, netconf_namespace, xmlns, strict_check
+        )
+
+    try:
+        if calls:
+            _run_calls(ctx, netconf, message_id, netconf_namespace, xmlns,
+                       calls, kwargs.get('back_database'), strict_check)
+        elif templates:
+            template_params = kwargs.get('params')
+            deep_error_check = kwargs.get('deep_error_check')
+            ctx.logger.debug("Params for template {template_params}".format(
+                template_params=filters.shorted_text(template_params)))
+            _run_templates(ctx, netconf, templates, template_params,
+                           netconf_namespace, xmlns, strict_check,
+                           deep_error_check)
+
+        if 'back_database' in kwargs and 'front_database' in kwargs:
+            message_id += 1
+            _copy(
+                ctx, kwargs['back_database'], kwargs['front_database'],
+                netconf, message_id, netconf_namespace, xmlns, strict_check
+            )
+
+    except (cfy_exc.NonRecoverableError, cfy_exc.RecoverableError) as e:
+        # discard only if we know that used candidate database
+        if 'back_database' in kwargs and 'front_database' in kwargs:
+            ctx.logger.info("Discard changes")
+            message_id += 1
+            _discard_changes(ctx, netconf, message_id, netconf_namespace,
+                             xmlns, strict_check)
+        raise e
+    return message_id
+
+
+def _run_in_locked(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
+                   templates, kwargs, strict_check):
+    """Run actions in locked state"""
+    if 'lock' in kwargs:
+        for name in kwargs['lock']:
+            message_id += 1
+            _lock(
+                ctx, name, True, netconf, message_id, netconf_namespace,
+                xmlns, strict_check
+            )
+    try:
+        message_id = _run_in_database(
+            ctx=ctx, netconf=netconf, message_id=message_id,
+            netconf_namespace=netconf_namespace, xmlns=xmlns,
+            calls=calls, templates=templates, kwargs=kwargs,
+            strict_check=strict_check)
+    finally:
+        # unlock databases
+        if 'lock' in kwargs:
+            for name in kwargs['lock']:
+                message_id += 1
+                _lock(
+                    ctx, name, False, netconf, message_id, netconf_namespace,
+                    xmlns, strict_check
+                )
+    return message_id
+
+
 @operation(resumable=True)
 def run(ctx, **kwargs):
     """main entry point for all calls"""
@@ -488,58 +557,12 @@ def run(ctx, **kwargs):
         ctx.logger.info("use version 1.0 of netconf protocol")
 
     try:
-        if 'lock' in kwargs:
-            message_id += 1
-            for name in kwargs['lock']:
-                _lock(
-                    ctx, name, True, netconf, message_id, netconf_namespace,
-                    xmlns, strict_check
-                )
-
-        if 'back_database' in kwargs and 'front_database' in kwargs:
-            message_id += 1
-            _copy(
-                ctx, kwargs['front_database'], kwargs['back_database'],
-                netconf, message_id, netconf_namespace, xmlns, strict_check
-            )
-
-        if calls:
-            _run_calls(ctx, netconf, message_id, netconf_namespace, xmlns,
-                       calls, kwargs.get('back_database'), strict_check)
-        elif templates:
-            template_params = kwargs.get('params')
-            deep_error_check = kwargs.get('deep_error_check')
-            ctx.logger.debug("Params for template {template_params}".format(
-                template_params=filters.shorted_text(template_params)))
-            _run_templates(ctx, netconf, templates, template_params,
-                           netconf_namespace, xmlns, strict_check,
-                           deep_error_check)
-
-        if 'back_database' in kwargs and 'front_database' in kwargs:
-            message_id += 1
-            _copy(
-                ctx, kwargs['back_database'], kwargs['front_database'],
-                netconf, message_id, netconf_namespace, xmlns, strict_check
-            )
-
-    except (cfy_exc.NonRecoverableError, cfy_exc.RecoverableError) as e:
-        # discard only if we know that used candidate database
-        if 'back_database' in kwargs and 'front_database' in kwargs:
-            ctx.logger.info("Discard changes")
-            message_id += 1
-            _discard_changes(ctx, netconf, message_id, netconf_namespace,
-                             xmlns, strict_check)
-        raise e
+        message_id = _run_in_locked(
+            ctx=ctx, netconf=netconf, message_id=message_id,
+            netconf_namespace=netconf_namespace, xmlns=xmlns,
+            calls=calls, templates=templates, kwargs=kwargs,
+            strict_check=strict_check)
     finally:
-        # unlock databases
-        if 'lock' in kwargs:
-            message_id += 1
-            for name in kwargs['lock']:
-                _lock(
-                    ctx, name, False, netconf, message_id, netconf_namespace,
-                    xmlns, strict_check
-                )
-
         # goodbye
         ctx.logger.info("Connection close")
         message_id += 1
