@@ -25,7 +25,6 @@ setup(
         'cloudify-common>=4.6',
         'lxml',
         'requests', # url templates
-        "Jinja2>=2.7.2",  # for template support
         'cloudify-utilities-plugins-sdk==0.0.9',  # ssh connection
     ]
 )
