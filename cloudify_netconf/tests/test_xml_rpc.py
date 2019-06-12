@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import mock
+import unittest
+import io
+
 from cloudify import exceptions as cfy_exc
 from cloudify import mocks as cfy_mocks
 from cloudify.state import current_ctx
@@ -18,9 +22,6 @@ import cloudify_terminal_sdk.netconf_connection as netconf_connection
 from cloudify_common_sdk import exceptions
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
-import mock
-import unittest
-import io
 
 
 class XmlRpcTest(unittest.TestCase):
@@ -33,6 +34,24 @@ class XmlRpcTest(unittest.TestCase):
             xmlns:t2="http://example.net/turing-machine/tape-2"
             ns0:message-id="57380">
             <ok/>
+        </rpc-reply>
+    """
+
+    INCORRECT_REPLY = """
+        <rpc-reply
+            xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"
+            xmlns:ns0="urn:ietf:params:xml:ns:netconf:base:1.0"
+            xmlns:turing="http://example.net/turing-machine"
+            xmlns:t2="http://example.net/turing-machine/tape-2"
+            ns0:message-id="57380">
+            <rpc-error>
+                <error-type>application</error-type>
+                <error-tag>operation-failed</error-tag>
+                <error-severity>error</error-severity>
+                <error-message>
+                    Candidate configuration is changed
+                </error-message>
+            </rpc-error>
         </rpc-reply>
     """
 
@@ -223,7 +242,8 @@ class XmlRpcTest(unittest.TestCase):
         fake_ctx = cfy_mocks.MockCloudifyContext()
         current_ctx.set(fake_ctx)
         netconf_namespace, xmlns = utils.update_xmlns({})
-        response = rpc._parse_response(xmlns, netconf_namespace, xml, True)
+        response = rpc._parse_response(fake_ctx, xmlns, netconf_namespace,
+                                       xml, True)
         self.assertEqual(
             response, {
                 '_@rfc6020@message-id': '57380',
@@ -243,7 +263,8 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        response = rpc._parse_response(xmlns, netconf_namespace, xml, True)
+        response = rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml,
+                                       True)
         self.assertEqual(
             response, {
                 '_@@message-id': '57380',
@@ -264,7 +285,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+            rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # error in reply
         xml = """
@@ -274,7 +295,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.RecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+            rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # warning in reply
         xml = """
@@ -285,7 +306,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        rpc._parse_response(xmlns, netconf_namespace, xml, True)
+        rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # error in reply
         xml = """
@@ -297,7 +318,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.RecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+            rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # error in reply in uncommon place
         xml = """
@@ -312,7 +333,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(
-                xmlns, netconf_namespace, xml, True, True
+                fake_ctx, xmlns, netconf_namespace, xml, True, True
             )
 
         # error in reply with namespace
@@ -325,7 +346,7 @@ class XmlRpcTest(unittest.TestCase):
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.RecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+            rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # warning in reply with namespace
         xml = """
@@ -338,7 +359,7 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        rpc._parse_response(xmlns, netconf_namespace, xml, True)
+        rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
         # error in reply in uncommon place with namespace
         xml = """
@@ -355,7 +376,7 @@ class XmlRpcTest(unittest.TestCase):
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.RecoverableError):
             rpc._parse_response(
-                xmlns, netconf_namespace, xml, True, True
+                fake_ctx, xmlns, netconf_namespace, xml, True, True
             )
 
         # check issues with xml
@@ -371,7 +392,8 @@ class XmlRpcTest(unittest.TestCase):
             </rpc-reply>
         """
         netconf_namespace, xmlns = utils.update_xmlns({})
-        response = rpc._parse_response(xmlns, netconf_namespace, xml, False)
+        response = rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml,
+                                       False)
         self.assertEqual(
             response, {
                 'rfc6020@ok': None,
@@ -382,7 +404,7 @@ class XmlRpcTest(unittest.TestCase):
         # raise execption for uncorrect xml
         netconf_namespace, xmlns = utils.update_xmlns({})
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._parse_response(xmlns, netconf_namespace, xml, True)
+            rpc._parse_response(fake_ctx, xmlns, netconf_namespace, xml, True)
 
     def test_server_support_1_1(self):
         """check support 1.1 response from server"""
@@ -420,7 +442,7 @@ class XmlRpcTest(unittest.TestCase):
         current_ctx.set(fake_ctx)
 
         rpc._run_templates(
-            nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
+            fake_ctx, nc_conn, ['{{ a }}'], {'a': 'correct'}, "rfc6020",
             {"rfc6020": "urn:ietf:params:xml:ns:netconf:base:1.0"},
             False, False  # no checks
         )
@@ -708,6 +730,58 @@ class XmlRpcTest(unittest.TestCase):
                 netconf_connection.NETCONF_1_1_CAPABILITY
             )
 
+        # we have failed operations
+        nc_conn = self._get_fake_nc_connect()
+        nc_conn.send = mock.Mock(side_effect=[
+            # copy-config
+            self.CORRECT_REPLY,
+            # failed operation
+            self.INCORRECT_REPLY,
+            # failed reset config
+            self.INCORRECT_REPLY
+            ])
+
+        with mock.patch(
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            with self.assertRaises(cfy_exc.RecoverableError):
+                # we have some failed operation
+                rpc.run(
+                    ctx=fake_ctx, calls=[{
+                        'action': 'run_something',
+                        'payload': {
+                            "a": "b"
+                        }
+                    }],
+                    back_database="a", front_database="b"
+                )
+
+        # failed operation, but reset successed
+        nc_conn.send = mock.Mock(side_effect=[
+            # copy-config
+            self.CORRECT_REPLY,
+            # failed operation
+            self.INCORRECT_REPLY,
+            # failed reset config
+            self.CORRECT_REPLY
+            ])
+        with mock.patch(
+            'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
+            mock.MagicMock(return_value=nc_conn)
+        ):
+            with self.assertRaises(cfy_exc.RecoverableError):
+                # we have some failed operation
+                rpc.run(
+                    ctx=fake_ctx, calls=[{
+                        'action': 'run_something',
+                        'payload': {
+                            "a": "b"
+                        }
+                    }],
+                    back_database="a", front_database="b"
+                )
+
     def test_run_one_string(self):
         fake_netconf = mock.Mock()
         fake_netconf.send = mock.Mock(
@@ -715,8 +789,8 @@ class XmlRpcTest(unittest.TestCase):
         fake_ctx = cfy_mocks.MockCloudifyContext()
         current_ctx.set(fake_ctx)
         with self.assertRaises(cfy_exc.NonRecoverableError):
-            rpc._run_one_string(fake_netconf, "<xml/>", {}, "abc", False,
-                                False)
+            rpc._run_one_string(fake_ctx, fake_netconf, "<xml/>", {}, "abc",
+                                False, False)
 
 
 if __name__ == '__main__':

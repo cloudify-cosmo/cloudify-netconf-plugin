@@ -17,6 +17,7 @@ inputs:
     description: >
        netconf server user
     default: netconf
+
   netconf_password:
     type: string
     description: >
@@ -37,8 +38,13 @@ node_types:
       metadata:
         default:
           xmlns:
-            vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
             vyatta-if-v1: urn:vyatta.com:mgmt:vyatta-interfaces:1
+            vyatta-interfaces-dataplane-v1: urn:vyatta.com:mgmt:vyatta-interfaces-dataplane:1
+            vyatta-interfaces-openvpn-v1: urn:vyatta.com:mgmt:vyatta-interfaces-openvpn:1
+            vyatta-service-nat-v1: urn:vyatta.com:mgmt:vyatta-service-nat:1
+            vyatta-services-v1: urn:vyatta.com:mgmt:vyatta-services:1
+            vyatta-system-network-v1: urn:vyatta.com:mgmt:vyatta-system-network:1
+            vyatta-system-v1: urn:vyatta.com:mgmt:vyatta-system:1
 
 node_templates:
 
@@ -71,7 +77,6 @@ node_templates:
               vyatta-interfaces-openvpn-v1@dh-file: /usr/share/doc/openvpn/examples/sample-keys/dh2048.pem
               vyatta-interfaces-openvpn-v1@key-file: /usr/share/doc/openvpn/examples/sample-keys/server.key
 
-
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -102,16 +107,6 @@ node_templates:
                     rfc6020@config:
                       vyatta-system-v1@system:
                         vyatta-system-network-v1@name-server: 8.8.4.4
-                      vyatta-services-v1@service:
-                        vyatta-service-nat-v1@nat:
-                          vyatta-service-nat-v1@source:
-                            vyatta-service-nat-v1@rule:
-                              vyatta-service-nat-v1@outbound-interface: dp0s3
-                              vyatta-service-nat-v1@source:
-                                vyatta-service-nat-v1@address: 192.168.1.0/24
-                              vyatta-service-nat-v1@tagnode: '10'
-                              vyatta-service-nat-v1@translation:
-                                vyatta-service-nat-v1@address: 172.16.10.11
 
               - action: rfc6020@get-config
                 payload:
@@ -174,13 +169,6 @@ node_templates:
                       vyatta-system-network-v1@name-server:
                         _@rfc6020@operation: delete
                         _@@: 8.8.4.4
-
-                    vyatta-services-v1@service:
-                      vyatta-service-nat-v1@nat:
-                        vyatta-service-nat-v1@source:
-                          vyatta-service-nat-v1@rule:
-                            vyatta-service-nat-v1@tagnode: '10'
-                            _@rfc6020@operation: delete
 
                     vyatta-if-v1@interfaces:
                       vyatta-interfaces-openvpn-v1@openvpn:

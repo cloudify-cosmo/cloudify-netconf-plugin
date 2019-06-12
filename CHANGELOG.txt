@@ -1,5 +1,9 @@
 releases:
 
+  v0.4.1:
+  - Reset candidate database on failure
+  - Close connection to service after failure
+
   v0.4.0:
   - Bump dependencies.
   - Support list of url templates.
