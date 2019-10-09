@@ -18,6 +18,7 @@ import requests
 
 from cloudify_common_sdk import exceptions
 import cloudify_terminal_sdk.netconf_connection as netconf_connection
+from cloudify.constants import NODE_INSTANCE, RELATIONSHIP_INSTANCE
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from cloudify_common_sdk import filters
@@ -361,8 +362,17 @@ def _run_calls(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
         # save results to runtime properties
         save_to = call.get('save_to')
         if save_to:
-            ctx.instance.runtime_properties[save_to] = response_dict
-            ctx.instance.runtime_properties[save_to + "_ns"] = xmlns
+            instance = None
+            if ctx.type == NODE_INSTANCE:
+                instance = ctx.instance
+            elif ctx.type == RELATIONSHIP_INSTANCE:
+                instance = ctx.source.instance
+
+            if instance is not None:
+                instance.runtime_properties[save_to] = response_dict
+                instance.runtime_properties[save_to + "_ns"] = xmlns
+            else:
+                ctx.logger.error('Cannot find instance to save response to')
 
 
 def _get_template(ctx, template_location):
@@ -448,7 +458,39 @@ def _run_in_locked(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
 
 @operation(resumable=True)
 def run(ctx, **kwargs):
-    """main entry point for all calls"""
+    """main entry point for instance lifecycle calls"""
+    netconf_auth = ctx.properties.get('netconf_auth', {})
+
+    # if node contained in some other node, try to overwrite ip
+    if not netconf_auth.get('ip'):
+        netconf_auth['ip'] = ctx.instance.host_ip
+        ctx.logger.info("Used host from container: {ip_list}".format(
+            ip_list=filters.shorted_text(netconf_auth['ip'])))
+
+    metadata = ctx.properties.get('metadata', {})
+    base_xmlns =  ctx.properties.get('base_xmlns', {})
+    log_file_name = (
+        "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
+        .format(execution_id=str(ctx.execution_id),
+                instance_id=str(ctx.instance.id),
+                workflow_id=str(ctx.workflow_id))
+    )
+    run_with_properties(ctx,
+                        netconf_auth,
+                        metadata,
+                        base_xmlns,
+                        log_file_name,
+                        **kwargs)
+
+
+@operation(resumable=True)
+def run_with_properties(ctx,
+                        netconf_auth,
+                        metadata,
+                        base_xmlns,
+                        log_file_name,
+                        **kwargs):
+    """main entry point for calls with custom configuration"""
 
     calls = kwargs.get('calls', [])
 
@@ -467,8 +509,6 @@ def run(ctx, **kwargs):
         return
 
     # credentials
-    properties = ctx.node.properties
-    netconf_auth = properties.get('netconf_auth', {})
     netconf_auth.update(kwargs.get('netconf_auth', {}))
     user = netconf_auth.get('user')
     password = netconf_auth.get('password')
@@ -478,14 +518,7 @@ def run(ctx, **kwargs):
     if isinstance(ip_list, basestring):
         ip_list = [ip_list]
     # save logs to debug file
-    log_file_name = None
     if netconf_auth.get('store_logs'):
-        log_file_name = (
-            "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
-            .format(execution_id=str(ctx.execution_id),
-                    instance_id=str(ctx.instance.id),
-                    workflow_id=str(ctx.workflow_id))
-        )
         ctx.logger.info(
             "Communication logs will be saved to {log_file_name}".format(
                 log_file_name=log_file_name)
@@ -493,11 +526,6 @@ def run(ctx, **kwargs):
 
     strict_check = kwargs.get('strict_check', True)
 
-    # if node contained in some other node, try to overwrite ip
-    if not ip_list:
-        ip_list = [ctx.instance.host_ip]
-        ctx.logger.info("Used host from container: {ip_list}".format(
-            ip_list=filters.shorted_text(ip_list)))
     # check minimal amout of credentials
     if not port or not ip_list or not user or (
         not password and not key_content
@@ -510,15 +538,15 @@ def run(ctx, **kwargs):
     message_id = int((time.time() * 100) % 100 * 1000)
 
     # xml namespaces and capabilities
-    xmlns = properties.get('metadata', {}).get('xmlns', {})
+    xmlns = metadata.get('xmlns', {})
 
     # override by system namespaces
-    xmlns = _merge_ns(xmlns, properties.get('base_xmlns', {}))
+    xmlns = _merge_ns(xmlns, base_xmlns)
 
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
-    capabilities = properties.get('metadata', {}).get('capabilities')
+    capabilities = metadata.get('capabilities')
 
     # connect
     ctx.logger.info("use {user}@{ip_list}:{port} for login".format(
