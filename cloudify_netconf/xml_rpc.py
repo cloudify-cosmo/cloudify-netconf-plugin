@@ -468,7 +468,7 @@ def run(ctx, **kwargs):
             ip_list=filters.shorted_text(netconf_auth['ip'])))
 
     metadata = ctx.node.properties.get('metadata', {})
-    base_xmlns =  ctx.node.properties.get('base_xmlns', {})
+    base_xmlns = ctx.node.properties.get('base_xmlns', {})
     run_with_properties(ctx,
                         netconf_auth,
                         metadata,
@@ -515,14 +515,17 @@ def run_with_properties(ctx,
         if log_file_name is None:
             if ctx.type == NODE_INSTANCE:
                 log_file_name = (
-                    "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
+                    "/tmp/netconf-"
+                    "{execution_id}_{instance_id}_{workflow_id}.log"
                     .format(execution_id=str(ctx.execution_id),
                             instance_id=str(ctx.instance.id),
                             workflow_id=str(ctx.workflow_id))
                 )
             elif ctx.type == RELATIONSHIP_INSTANCE:
                 log_file_name = (
-                    "/tmp/netconf-{execution_id}_{src_instance_id}_{trg_instance_id}_{workflow_id}.log"
+                    "/tmp/netconf-"
+                    "{execution_id}_{src_instance_id}_"
+                    "{trg_instance_id}_{workflow_id}.log"
                     .format(execution_id=str(ctx.execution_id),
                             src_instance_id=str(ctx.source.instance.id),
                             trg_instance_id=str(ctx.target.instance.id),
