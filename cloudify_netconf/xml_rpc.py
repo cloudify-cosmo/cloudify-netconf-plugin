@@ -459,7 +459,7 @@ def _run_in_locked(ctx, netconf, message_id, netconf_namespace, xmlns, calls,
 @operation(resumable=True)
 def run(ctx, **kwargs):
     """main entry point for instance lifecycle calls"""
-    netconf_auth = ctx.properties.get('netconf_auth', {})
+    netconf_auth = ctx.node.properties.get('netconf_auth', {})
 
     # if node contained in some other node, try to overwrite ip
     if not netconf_auth.get('ip'):
@@ -467,8 +467,8 @@ def run(ctx, **kwargs):
         ctx.logger.info("Used host from container: {ip_list}".format(
             ip_list=filters.shorted_text(netconf_auth['ip'])))
 
-    metadata = ctx.properties.get('metadata', {})
-    base_xmlns =  ctx.properties.get('base_xmlns', {})
+    metadata = ctx.node.properties.get('metadata', {})
+    base_xmlns =  ctx.node.properties.get('base_xmlns', {})
     log_file_name = (
         "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
         .format(execution_id=str(ctx.execution_id),
