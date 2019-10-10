@@ -469,17 +469,10 @@ def run(ctx, **kwargs):
 
     metadata = ctx.node.properties.get('metadata', {})
     base_xmlns =  ctx.node.properties.get('base_xmlns', {})
-    log_file_name = (
-        "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
-        .format(execution_id=str(ctx.execution_id),
-                instance_id=str(ctx.instance.id),
-                workflow_id=str(ctx.workflow_id))
-    )
     run_with_properties(ctx,
                         netconf_auth,
                         metadata,
                         base_xmlns,
-                        log_file_name,
                         **kwargs)
 
 
@@ -488,7 +481,7 @@ def run_with_properties(ctx,
                         netconf_auth,
                         metadata,
                         base_xmlns,
-                        log_file_name,
+                        log_file_name=None,
                         **kwargs):
     """main entry point for calls with custom configuration"""
 
@@ -519,6 +512,27 @@ def run_with_properties(ctx,
         ip_list = [ip_list]
     # save logs to debug file
     if netconf_auth.get('store_logs'):
+        if log_file_name is None:
+            if ctx.type == NODE_INSTANCE:
+                log_file_name = (
+                    "/tmp/netconf-{execution_id}_{instance_id}_{workflow_id}.log"
+                    .format(execution_id=str(ctx.execution_id),
+                            instance_id=str(ctx.instance.id),
+                            workflow_id=str(ctx.workflow_id))
+                )
+            elif ctx.type == RELATIONSHIP_INSTANCE:
+                log_file_name = (
+                    "/tmp/netconf-{execution_id}_{src_instance_id}_{trg_instance_id}_{workflow_id}.log"
+                    .format(execution_id=str(ctx.execution_id),
+                            src_instance_id=str(ctx.source.instance.id),
+                            trg_instance_id=str(ctx.target.instance.id),
+                            workflow_id=str(ctx.workflow_id))
+                )
+            log_file_name = (
+                "/tmp/netconf-{execution_id}_{workflow_id}.log"
+                .format(execution_id=str(ctx.execution_id),
+                        workflow_id=str(ctx.workflow_id))
+            )
         ctx.logger.info(
             "Communication logs will be saved to {log_file_name}".format(
                 log_file_name=log_file_name)
