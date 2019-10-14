@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
-    version='0.4.1',
+    version='0.4.2',
     description='Cloudify Netconf plugin',
     author='Cloudify Platform Ltd.',
     author_email='hello@cloudify.co',

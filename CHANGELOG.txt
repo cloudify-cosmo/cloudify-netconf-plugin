@@ -1,5 +1,8 @@
 releases:
 
+  v0.4.2:
+  - Extracted main entry method to allow binding with relationship operations
+ 
   v0.4.1:
   - Reset candidate database on failure
   - Close connection to service after failure
