@@ -25,6 +25,6 @@ setup(
         'cloudify-common>=4.6',
         'lxml',
         'requests', # url templates
-        'cloudify-utilities-plugins-sdk==0.0.9',  # ssh connection
+        'cloudify-utilities-plugins-sdk>=0.0.10',  # ssh connection
     ]
 )

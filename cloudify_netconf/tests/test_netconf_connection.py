@@ -132,6 +132,8 @@ class NetConfConnectionTest(unittest.TestCase):
 
     def test_close(self):
         netconf = self.generate_all_mocks()
+        conn = netconf.conn
+        ssh = netconf.ssh
         netconf.conn.recv = mock.MagicMock(
             return_value=(
                 "ok" + netconf_connection.NETCONF_1_0_END
@@ -141,11 +143,11 @@ class NetConfConnectionTest(unittest.TestCase):
             "ok",
             netconf.close("close")
         )
-        netconf.conn.send.assert_called_with(
+        conn.send.assert_called_with(
             "close" + netconf_connection.NETCONF_1_0_END
         )
-        netconf.conn.close.assert_called_with()
-        netconf.ssh.close.assert_called_with()
+        conn.close.assert_called_with()
+        ssh.close.assert_called_with()
 
     def test_connect_with_password(self):
         """connect call with password"""

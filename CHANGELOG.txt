@@ -2,7 +2,8 @@ releases:
 
   v0.4.2:
   - Extracted main entry method to allow binding with relationship operations
- 
+  - Use cloudify-utilities-plugins-sdk==0.0.10 from PYPI
+
   v0.4.1:
   - Reset candidate database on failure
   - Close connection to service after failure
