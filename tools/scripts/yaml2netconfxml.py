@@ -16,6 +16,8 @@ from lxml import etree
 import sys
 import yaml
 
+from __future__ import print_function
+
 
 help_message = """
 usage: python yaml2netconfxml.py rpc.yaml
