@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from urlparse import urlparse
 from lxml import etree
 import time
 import requests
@@ -24,7 +23,7 @@ from cloudify import exceptions as cfy_exc
 from cloudify_common_sdk import filters
 import cloudify_netconf.utils as utils
 
-from cloudify_netconf._compat import text_type
+from cloudify_netconf._compat import (text_type, urlparse)
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
@@ -184,7 +183,7 @@ def _parse_response(ctx, xmlns, netconf_namespace, response,
                 'Unexpected key in response: {response}'.format(
                     response=filters.shorted_text(xml_dict)))
         reply = \
-            [v for k, v in xml_dict.viewitems()
+            [v for k, v in list(xml_dict.items())
              if 'rpc-reply' in k][0]
     except IndexError:
         raise cfy_exc.NonRecoverableError(
