@@ -22,7 +22,7 @@ setup(
     license='LICENSE',
     packages=['cloudify_netconf'],
     install_requires=[
-        'cloudify-common>=4.6',
+        'cloudify-common==5.1.0.dev1',
         'lxml',
         'requests', # url templates
         'cloudify-utilities-plugins-sdk>=0.0.10',  # ssh connection

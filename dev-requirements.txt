@@ -1,3 +1,3 @@
 lxml
-cloudify-common==4.6
-cloudify-utilities-plugins-sdk==0.0.10
+https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip
+cloudify-utilities-plugins-sdk>=0.0.10
