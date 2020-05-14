@@ -24,6 +24,8 @@ from cloudify import exceptions as cfy_exc
 from cloudify_common_sdk import filters
 import cloudify_netconf.utils as utils
 
+from cloudify_netconf._compat import text_type
+
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
     """generate initial hello message with capabilities"""
@@ -132,7 +134,7 @@ def _have_error(reply):
 
 def _search_error(reply, netconf_namespace):
     # recursive search for error tag, slow and dangerous
-    if isinstance(reply, basestring):
+    if isinstance(reply, text_type):
         return
     elif isinstance(reply, list):
         for tag in reply:
@@ -508,7 +510,7 @@ def run_with_properties(ctx,
     key_content = netconf_auth.get('key_content')
     port = int(netconf_auth.get('port', 830))
     ip_list = netconf_auth.get('ip')
-    if isinstance(ip_list, basestring):
+    if isinstance(ip_list, text_type):
         ip_list = [ip_list]
     # save logs to debug file
     if netconf_auth.get('store_logs'):

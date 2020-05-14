@@ -483,7 +483,7 @@ class XmlRpcTest(unittest.TestCase):
             'netconf_auth': {
                 "user": "me",
                 "password": "secret",
-                "ip": "super_secret"
+                "ip": u"super_secret"
             },
             'metadata': {
                 'xmlns': {
@@ -604,7 +604,7 @@ class XmlRpcTest(unittest.TestCase):
             'netconf_auth': {
                 "user": "me",
                 "password": "secret",
-                "ip": "super_secret",
+                "ip": u"super_secret",
                 # save logs
                 "store_logs": True
             },
@@ -712,7 +712,7 @@ class XmlRpcTest(unittest.TestCase):
         )
         # drop ip from auth dict, lets use 'container' ip
         node.properties['netconf_auth']["ip"] = None
-        instance.host_ip = "ip_from_runtime"
+        instance.host_ip = u"ip_from_runtime"
         with mock.patch(
             'cloudify_terminal_sdk.netconf_connection.NetConfConnection',
             mock.MagicMock(return_value=nc_conn)
