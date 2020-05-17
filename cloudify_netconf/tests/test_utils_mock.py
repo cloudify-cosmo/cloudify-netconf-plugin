@@ -14,6 +14,8 @@
 from lxml import etree
 from collections import OrderedDict
 import unittest
+import xmltodict
+import json
 
 from cloudify import exceptions as cfy_exc
 import cloudify_netconf.utils as utils
@@ -179,9 +181,13 @@ class UtilsMockTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            xml_node_string,
-            """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netconf:b""" +
-            """ase:1.0"><a><b><c>d</c></b></a></rpc>"""
+            json.dumps(xmltodict.parse(xml_node_string.decode('utf-8')),
+                       indent=4, sort_keys=True),
+            json.dumps(xmltodict.parse("""<rpc xmlns:nm="s" xmlns="urn""" +
+                                       """:ietf:params:xml:ns:netconf""" +
+                                       """:base:1.0"><a>""" +
+                                       """<b><c>d</c></b></a></rpc>"""),
+                       indent=4, sort_keys=True)
         )
 
     def test_dict_to_xml(self):
@@ -202,11 +208,14 @@ class UtilsMockTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            xml_node_string,
-            """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netc""" +
-            """onf:base:1.0"><a xmlns:ns0="urn:ietf:params:xml:ns:n""" +
-            """etconf:base:1.0"><b ns0:m="g">b</b><c nm:nm="update">""" +
-            """<f>1</f><e>str</e><d>1</d><d>2</d><d>3</d></c></a></rpc>"""
+            json.dumps(xmltodict.parse(xml_node_string.decode('utf-8')),
+                       indent=4, sort_keys=True),
+            json.dumps(xmltodict.parse(
+                """<rpc xmlns:nm="s" xmlns="urn:ietf:params:xml:ns:netc""" +
+                """onf:base:1.0"><a xmlns:ns0="urn:ietf:params:xml:ns:n""" +
+                """etconf:base:1.0"><b ns0:m="g">b</b><c nm:nm="update">""" +
+                """<f>1</f><e>str</e><d>1</d><d>2</d><d>3</d></c></a>""" +
+                """</rpc>"""), indent=4, sort_keys=True)
         )
 
     def test_dict_to_xml_raw_include(self):
@@ -230,7 +239,7 @@ class UtilsMockTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            xml_node_string,
+            xml_node_string.decode('utf-8'),
             """<rpc xmlns="urn:ietf:params:xml:ns:netconf:base:""" +
             """1.0"><a><g><a n="1"/><d n="2"/><c n="3"/></g></a></rpc>"""
         )
@@ -255,7 +264,12 @@ class UtilsMockTest(unittest.TestCase):
             xml_node, pretty_print=False
         )
 
-        self.assertEqual(xml_node_string, self.TURING_STRIPPED)
+        self.assertEqual(
+            json.dumps(xmltodict.parse(xml_node_string.decode('utf-8')),
+                       indent=4, sort_keys=True),
+            json.dumps(xmltodict.parse(self.TURING_STRIPPED),
+                       indent=4, sort_keys=True)
+        )
 
     def test_rpc_gen(self):
         """check rpc_gen"""
@@ -280,7 +294,12 @@ class UtilsMockTest(unittest.TestCase):
             """params:xml:ns:netconf:base:1.0" r:message-id""" +
             """="some_id"><r:run><r:b>b</r:b></r:run></r:rpc>"""
         )
-        self.assertEqual(rpc_string, example_string)
+        self.assertEqual(
+            json.dumps(xmltodict.parse(rpc_string.decode('utf-8')),
+                       indent=4, sort_keys=True),
+            json.dumps(xmltodict.parse(example_string),
+                       indent=4, sort_keys=True)
+        )
         # have namespace in action
         parent = utils.rpc_gen(
             "some_id", 'n@run', netconf_namespace, data, xmlns
@@ -291,7 +310,12 @@ class UtilsMockTest(unittest.TestCase):
             """params:xml:ns:netconf:base:1.0" r:message-id""" +
             """="some_id"><n:run><n:b>b</n:b></n:run></r:rpc>"""
         )
-        self.assertEqual(rpc_string, example_string)
+        self.assertEqual(
+            json.dumps(xmltodict.parse(rpc_string.decode('utf-8')),
+                       indent=4, sort_keys=True),
+            json.dumps(xmltodict.parse(example_string),
+                       indent=4, sort_keys=True)
+        )
 
     def test_node_name(self):
         """check exceptions in node_name convertion"""

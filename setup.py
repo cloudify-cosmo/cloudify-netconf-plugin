@@ -26,5 +26,6 @@ setup(
         'lxml',
         'requests', # url templates
         'cloudify-utilities-plugins-sdk>=0.0.10',  # ssh connection
+        'xmltodict', # convert xml to dict
     ]
 )

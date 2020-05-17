@@ -23,6 +23,8 @@ from cloudify_common_sdk import exceptions
 import cloudify_netconf.utils as utils
 import cloudify_netconf.xml_rpc as rpc
 
+from cloudify_netconf._compat import PY2
+
 
 class XmlRpcTest(unittest.TestCase):
 
@@ -95,7 +97,7 @@ class XmlRpcTest(unittest.TestCase):
         )
         netconf_namespace, xmlns = utils.update_xmlns({})
         hello_string = rpc._generate_hello(xmlns, netconf_namespace, {})
-        self.assertEqual(hello_string, hello_message)
+        self.assertEqual(hello_string.decode('utf-8'), hello_message)
 
     def test_generate_goodbye(self):
         """check goodbye message"""
@@ -109,7 +111,7 @@ class XmlRpcTest(unittest.TestCase):
         goodbye_string = rpc._generate_goodbye(
             xmlns, netconf_namespace, "last_message"
         )
-        self.assertEqual(goodbye_string, goodbye_message)
+        self.assertEqual(goodbye_string.decode('utf-8'), goodbye_message)
 
     def test_update_data(self):
         """update target for edit-config"""
@@ -466,6 +468,17 @@ class XmlRpcTest(unittest.TestCase):
             """llo>\n"""
         )
 
+        hello_message_py3 = (
+            """<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<rfc6020""" +
+            """:hello xmlns:d="c" xmlns:a="b" xmlns:rfc6020="urn:ie""" +
+            """tf:params:xml:ns:netconf:base:1.0">\n  <rfc6020:capa""" +
+            """bilities>\n    <rfc6020:capability>urn:ietf:params:n""" +
+            """etconf:base:1.0</rfc6020:capability>\n    <rfc6020:c""" +
+            """apability>urn:ietf:params:netconf:base:1.1</rfc6020:""" +
+            """capability>\n  </rfc6020:capabilities>\n</rfc6020:he""" +
+            """llo>\n"""
+        )
+
         # no calls
         current_ctx.set(fake_ctx)
 
@@ -500,9 +513,15 @@ class XmlRpcTest(unittest.TestCase):
         ):
             # we have empty action
             rpc.run(ctx=fake_ctx, template="template.xml")
-            nc_conn.connect.assert_called_with(
-                'super_secret', 'me', hello_message, 'secret', None, 830
-            )
+            if PY2:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message, 'secret', None, 830
+                )
+            else:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message_py3, 'secret', None,
+                    830
+                )
 
             fake_ctx.get_resource.assert_called_with(
                 "template.xml"
@@ -589,6 +608,17 @@ class XmlRpcTest(unittest.TestCase):
             """llo>\n"""
         )
 
+        hello_message_py3 = (
+            """<?xml version=\'1.0\' encoding=\'UTF-8\'?>\n<rfc6020""" +
+            """:hello xmlns:d="c" xmlns:a="b" xmlns:rfc6020="urn:ie""" +
+            """tf:params:xml:ns:netconf:base:1.0">\n  <rfc6020:capa""" +
+            """bilities>\n    <rfc6020:capability>urn:ietf:params:n""" +
+            """etconf:base:1.0</rfc6020:capability>\n    <rfc6020:c""" +
+            """apability>urn:ietf:params:netconf:base:1.1</rfc6020:""" +
+            """capability>\n  </rfc6020:capabilities>\n</rfc6020:he""" +
+            """llo>\n"""
+        )
+
         # no calls
         current_ctx.set(fake_ctx)
         rpc.run(ctx=fake_ctx)
@@ -631,9 +661,15 @@ class XmlRpcTest(unittest.TestCase):
             with self.assertRaises(cfy_exc.NonRecoverableError):
                 # we have empty action
                 rpc.run(ctx=fake_ctx, calls=[{'unknow': 'get'}])
-            nc_conn.connect.assert_called_with(
-                'super_secret', 'me', hello_message, 'secret', None, 830
-            )
+            if PY2:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message, 'secret', None, 830
+                )
+            else:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message_py3, 'secret', None,
+                    830
+                )
             fake_ctx.get_resource.assert_not_called()
 
         # connect without exception
@@ -645,9 +681,15 @@ class XmlRpcTest(unittest.TestCase):
         ):
             # we have empty action
             rpc.run(ctx=fake_ctx, calls=[{'unknow': 'get'}])
-            nc_conn.connect.assert_called_with(
-                'super_secret', 'me', hello_message, 'secret', None, 830
-            )
+            if PY2:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message, 'secret', None, 830
+                )
+            else:
+                nc_conn.connect.assert_called_with(
+                    'super_secret', 'me', hello_message_py3, 'secret', None,
+                    830
+                )
             fake_ctx.get_resource.assert_not_called()
 
             # have some payload
@@ -722,9 +764,15 @@ class XmlRpcTest(unittest.TestCase):
             }])
 
             # we use correct ip from instance runtime properties
-            nc_conn.connect.assert_called_with(
-                'ip_from_runtime', 'me', hello_message, 'secret', None, 830
-            )
+            if PY2:
+                nc_conn.connect.assert_called_with(
+                    'ip_from_runtime', 'me', hello_message, 'secret', None, 830
+                )
+            else:
+                nc_conn.connect.assert_called_with(
+                    'ip_from_runtime', 'me', hello_message_py3, 'secret', None,
+                    830
+                )
             self.assertEqual(
                 nc_conn.current_level,
                 netconf_connection.NETCONF_1_1_CAPABILITY

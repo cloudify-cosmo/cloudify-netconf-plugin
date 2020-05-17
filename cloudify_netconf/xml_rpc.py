@@ -560,7 +560,6 @@ def run_with_properties(ctx,
 
     # override by system namespaces
     xmlns = _merge_ns(xmlns, base_xmlns)
-
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
@@ -571,7 +570,7 @@ def run_with_properties(ctx,
         user=user, ip_list=ip_list, port=port))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
-    )
+    ).decode('utf-8')
     ctx.logger.debug("Sent: {message}"
                      .format(message=filters.shorted_text(hello_string)))
 
