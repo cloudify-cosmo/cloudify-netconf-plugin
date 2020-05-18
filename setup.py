@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-netconf-plugin',
-    version='0.4.2',
+    version='0.4.3',
     description='Cloudify Netconf plugin',
     author='Cloudify Platform Ltd.',
     author_email='hello@cloudify.co',
@@ -26,5 +26,6 @@ setup(
         'lxml',
         'requests', # url templates
         'cloudify-utilities-plugins-sdk>=0.0.10',  # ssh connection
+        'xmltodict', # convert xml to dict
     ]
 )

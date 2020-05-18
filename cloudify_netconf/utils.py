@@ -89,7 +89,7 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
 
 
 def _gen_xml(parent, properties, xmlns, namespace, nsmap):
-    for node in properties.keys():
+    for node in properties:
         if isinstance(properties[node], list):
             # will be many nodes with same name
             for value in properties[node]:

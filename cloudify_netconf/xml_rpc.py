@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from urlparse import urlparse
 from lxml import etree
 import time
 import requests
@@ -23,6 +22,8 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from cloudify_common_sdk import filters
 import cloudify_netconf.utils as utils
+
+from cloudify_netconf._compat import (text_type, urlparse)
 
 
 def _generate_hello(xmlns, netconf_namespace, capabilities):
@@ -132,7 +133,7 @@ def _have_error(reply):
 
 def _search_error(reply, netconf_namespace):
     # recursive search for error tag, slow and dangerous
-    if isinstance(reply, basestring):
+    if isinstance(reply, text_type):
         return
     elif isinstance(reply, list):
         for tag in reply:
@@ -182,7 +183,7 @@ def _parse_response(ctx, xmlns, netconf_namespace, response,
                 'Unexpected key in response: {response}'.format(
                     response=filters.shorted_text(xml_dict)))
         reply = \
-            [v for k, v in xml_dict.viewitems()
+            [v for k, v in xml_dict.items()
              if 'rpc-reply' in k][0]
     except IndexError:
         raise cfy_exc.NonRecoverableError(
@@ -508,7 +509,7 @@ def run_with_properties(ctx,
     key_content = netconf_auth.get('key_content')
     port = int(netconf_auth.get('port', 830))
     ip_list = netconf_auth.get('ip')
-    if isinstance(ip_list, basestring):
+    if isinstance(ip_list, text_type):
         ip_list = [ip_list]
     # save logs to debug file
     if netconf_auth.get('store_logs'):
@@ -559,7 +560,6 @@ def run_with_properties(ctx,
 
     # override by system namespaces
     xmlns = _merge_ns(xmlns, base_xmlns)
-
     netconf_namespace, xmlns = utils.update_xmlns(
         xmlns
     )
@@ -570,7 +570,7 @@ def run_with_properties(ctx,
         user=user, ip_list=ip_list, port=port))
     hello_string = _generate_hello(
         xmlns, netconf_namespace, capabilities
-    )
+    ).decode('utf-8')
     ctx.logger.debug("Sent: {message}"
                      .format(message=filters.shorted_text(hello_string)))
 

@@ -15,6 +15,8 @@ import cloudify_netconf.utils as utils
 import sys
 import yaml
 
+from __future__ import print_function
+
 help_message = """
 usage: python netconfxml2yaml.py rpc.xml
 

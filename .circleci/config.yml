@@ -11,7 +11,7 @@ checkout:
 
 jobs:
 
-  unittests:
+  unittests_py27:
     docker:
       - image: circleci/python:2.7.15-stretch
     steps:
@@ -32,7 +32,62 @@ jobs:
           name: install tox
           command: pip install --user tox
       - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e py27
+      - run: /home/circleci/.local/bin/tox -e nosetests
+
+  py3_compat:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - checkout
+      - run:
+          name: install futurize
+          command: pip install future --user
+      - run:
+          name: remove python3 incompatible modules
+          command: |
+            rm cloudify_netconf/_compat.py
+      - run:
+          name: find python3-incompatible code
+          command: |
+            FUTURIZE="futurize ."
+            while read line; do
+              [[ "$line" =~ ^#.* ]] && continue
+              FUTURIZE="${FUTURIZE} ${line}"
+            done<.circleci/py3fixers
+            echo "Running: $FUTURIZE"
+            $FUTURIZE>futurize_diffs
+      - run:
+          name: check that there is no python3-incompatible code
+          command: |
+            if [[ -s futurize_diffs ]]; then
+              echo "Python-3-incompatible code found"
+              cat futurize_diffs
+              exit 1
+            fi
+
+  unittests_py36:
+    docker:
+      - image: circleci/python:3.6-stretch
+    steps:
+      - checkout
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
+          name: Init virtualenv
+          command: virtualenv env
+      - run:
+          name: install tox
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e nosetests
+
 
   wagon:
     docker:
@@ -78,7 +133,9 @@ workflows:
   version: 2
   tests:
     jobs:
-      - unittests
+      - unittests_py27
+      - unittests_py36
+      - py3_compat
       - wagon:
           filters:
             branches:
