@@ -183,7 +183,7 @@ def _parse_response(ctx, xmlns, netconf_namespace, response,
                 'Unexpected key in response: {response}'.format(
                     response=filters.shorted_text(xml_dict)))
         reply = \
-            [v for k, v in list(xml_dict.items())
+            [v for k, v in xml_dict.items()
              if 'rpc-reply' in k][0]
     except IndexError:
         raise cfy_exc.NonRecoverableError(
