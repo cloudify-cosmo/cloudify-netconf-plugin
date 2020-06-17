@@ -1,2 +1,1 @@
-lxml
-cloudify-utilities-plugins-sdk==0.0.10
+
