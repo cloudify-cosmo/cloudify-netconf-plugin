@@ -1,4 +1,0 @@
-lxml
-requests
-cloudify-common==4.6
-cloudify-utilities-plugins-sdk==0.0.10
