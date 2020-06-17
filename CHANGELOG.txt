@@ -1,5 +1,8 @@
 releases:
 
+  v0.4.4:
+  - Add release management to Circleci and Update wagon builder to py2py3 wagon.
+
   v0.4.3:
   - Port the plugin to Python 3
 
