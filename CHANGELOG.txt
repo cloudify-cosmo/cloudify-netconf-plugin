@@ -21,13 +21,11 @@ releases:
 - Support rerun operation on resume.
 
 0.3.1:
-- Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf
-low level connection.
+- Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf low level connection.
 - Support early close connection before we fully read message.
 
 0.3.0:
-- Use cloudify-utilities-plugins-sdk==0.0.1 for manage netconf
-low level connection.
+- Use cloudify-utilities-plugins-sdk==0.0.1 for manage netconf low level connection.
 
 0.2.1:
 - Ignore comments in xml
