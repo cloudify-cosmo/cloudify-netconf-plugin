@@ -1,44 +1,41 @@
 releases:
+0.4.4:
+- Add release management to Circleci and Update wagon builder to py2py3 wagon.
 
-  v0.4.4:
-  - Add release management to Circleci and Update wagon builder to py2py3 wagon.
+0.4.3:
+- Port the plugin to Python 3
 
-  v0.4.3:
-  - Port the plugin to Python 3
+0.4.2:
+- Extracted main entry method to allow binding with relationship operations
+- Use cloudify-utilities-plugins-sdk==0.0.10 from PYPI
 
-  v0.4.2:
-  - Extracted main entry method to allow binding with relationship operations
-  - Use cloudify-utilities-plugins-sdk==0.0.10 from PYPI
+0.4.1:
+- Reset candidate database on failure
+- Close connection to service after failure
 
-  v0.4.1:
-  - Reset candidate database on failure
-  - Close connection to service after failure
+0.4.0:
+- Bump dependencies.
+- Support list of url templates.
+- Deprecate dsdl validation.
+- Deprecate xml2netconf node type, use templates instead.
+- Support rerun operation on resume.
 
-  v0.4.0:
-  - Bump dependencies.
-  - Support list of url templates.
-  - Deprecate dsdl validation.
-  - Deprecate xml2netconf node type, use templates instead.
-  - Support rerun operation on resume.
+0.3.1:
+- Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf low level connection.
+- Support early close connection before we fully read message.
 
-  v0.3.1:
-  - Use cloudify-utilities-plugins-sdk==0.0.2 for manage netconf
-    low level connection.
-  - Support early close connection before we fully read message.
+0.3.0:
+- Use cloudify-utilities-plugins-sdk==0.0.1 for manage netconf low level connection.
 
-  v0.3.0:
-  - Use cloudify-utilities-plugins-sdk==0.0.1 for manage netconf
-    low level connection.
+0.2.1:
+- Ignore comments in xml
+- ignore namespaces in erorr processing
 
-  v0.2.1:
-  - Ignore comments in xml
-  - ignore namespaces in erorr processing
+0.2.0:
+- Juniper devices support
+- Cisco devices support
+- Provide ctx in template
+- Add "raw insert" to xml
+- Suport ip list failback
 
-  v0.2.0:
-  - Juniper devices support
-  - Cisco devices support
-  - Provide ctx in template
-  - Add "raw insert" to xml
-  - Suport ip list failback
-
-  v0.1.0: Initial release
+0.1.0: Initial release
