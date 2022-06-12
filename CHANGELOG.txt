@@ -1,4 +1,6 @@
 releases:
+0.4.6: dummy test release.
+0.4.5: dummy test release.
 0.4.4:
 - Add release management to Circleci and Update wagon builder to py2py3 wagon.
 
