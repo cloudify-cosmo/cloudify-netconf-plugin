@@ -1,9 +1,9 @@
 plugins:
   netconf:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-netconf-plugin/archive/0.4.4.zip
+    source: https://github.com/cloudify-cosmo/cloudify-netconf-plugin/archive/0.4.6.zip
     package_name: cloudify-netconf-plugin
-    package_version: '0.4.4'
+    package_version: '0.4.6'
 
 blueprint_labels:
   obj-type:
