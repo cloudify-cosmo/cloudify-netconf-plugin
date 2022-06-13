@@ -1,4 +1,5 @@
 releases:
+0.4.8: dummy test release.
 0.4.7: dummy test release.
 0.4.6: dummy test release.
 0.4.5: dummy test release.
