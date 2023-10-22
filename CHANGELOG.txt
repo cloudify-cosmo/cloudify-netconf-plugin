@@ -1,4 +1,5 @@
 releases:
+0.4.12: Release DSL 1_5 and manylinux wagon.
 0.4.11: Release DSL 1_4 and redhat 8 wagon.
 0.4.10: dummy test release.
 0.4.9: dummy test release.

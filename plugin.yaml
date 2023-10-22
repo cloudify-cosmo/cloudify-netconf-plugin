@@ -2,7 +2,7 @@ plugins:
   netconf:
     executor: central_deployment_agent
     package_name: cloudify-netconf-plugin
-    package_version: '0.4.11'
+    package_version: '0.4.12'
 
 data_types:
 
