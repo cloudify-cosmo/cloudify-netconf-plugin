@@ -5,4 +5,3 @@ tox
 nose-cov
 pylint
 flake8
-https://github.com/cloudify-cosmo/cloudify-common/archive/master.zip

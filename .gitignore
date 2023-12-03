@@ -55,3 +55,7 @@ docs/_build/
 
 # PyBuilder
 target/
+cloudify-utilities-plugins-sdk
+fusion-agent
+fusion-common
+fusion-manager
