@@ -13,9 +13,28 @@
 # limitations under the License.
 import os
 import re
+import sys
 import pathlib
+from setuptools import setup, find_packages
 
-from setuptools import setup
+
+install_requires = [
+    'lxml',
+    'xmltodict', # convert xml to dict
+    'requests>=2.25.0',
+]
+if sys.version_info.major == 3 and sys.version_info.minor == 6:
+    packages = ['cloudify_netconf']
+    install_requires += [
+        'cloudify-common>=4.6,<7.0.0',
+        'cloudify-utilities-plugins-sdk>=0.0.127'
+    ]
+else:
+    packages = find_packages()
+    install_requires += [
+        'fusion-common',
+        'cloudify-utilities-plugins-sdk'
+    ]
 
 
 def get_version():
@@ -33,12 +52,6 @@ setup(
     author='Cloudify Platform Ltd.',
     author_email='hello@cloudify.co',
     license='LICENSE',
-    packages=['cloudify_netconf'],
-    install_requires=[
-        'cloudify-common>=4.6',
-        'lxml',
-        'requests', # url templates
-        'cloudify-utilities-plugins-sdk>=0.0.26',  # ssh connection
-        'xmltodict', # convert xml to dict
-    ]
+    packages=packages,
+    install_requires=install_requires
 )
